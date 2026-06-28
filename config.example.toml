@@ -1,0 +1,4 @@
+[mini_code_agent]
+log_level = "info"
+data_dir = ".mini-code-agent"
+trace_enabled = true
