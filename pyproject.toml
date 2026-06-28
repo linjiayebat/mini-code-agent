@@ -1,0 +1,79 @@
+[project]
+name = "mini-code-agent"
+version = "0.1.0a0"
+description = "A framework-light, provider-neutral, enterprise-grade mini code agent."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "Apache-2.0"
+authors = [
+    { name = "Lin Jiaye" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "platformdirs>=4.3,<5",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "rich>=13.9,<15",
+    "typer>=0.15,<1",
+]
+
+[project.scripts]
+mini-code-agent = "mini_code_agent.cli:app"
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "build>=1.2,<2",
+    "pyright>=1.1.390",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mini_code_agent"]
+
+[tool.pytest.ini_options]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["mini_code_agent"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = [".venv", "build", "dist"]
+pythonVersion = "3.12"
+pythonPlatform = "All"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false

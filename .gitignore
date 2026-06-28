@@ -1,1 +1,17 @@
 .worktrees/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.pyright/
+build/
+dist/
+*.egg-info/
+.env
+*.log
+.mini-code-agent/
+.idea/
+.vscode/
