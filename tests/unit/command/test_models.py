@@ -11,7 +11,7 @@ def test_command_limits_have_bounded_defaults() -> None:
 
     assert limits.max_output_bytes == 1024 * 1024
     assert limits.max_timeout_seconds == 300
-    assert limits.cleanup_timeout_seconds == 2.0
+    assert limits.cleanup_timeout_seconds == 5.0
 
 
 @pytest.mark.parametrize(

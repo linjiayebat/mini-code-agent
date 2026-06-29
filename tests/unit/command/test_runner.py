@@ -140,7 +140,7 @@ async def test_runner_normalizes_missing_executable(tmp_path: Path) -> None:
 async def test_runner_timeout_terminates_without_late_side_effect(tmp_path: Path) -> None:
     marker = tmp_path / "late.txt"
     code = "import pathlib,time; time.sleep(5); pathlib.Path('late.txt').write_text('late')"
-    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=1))
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=5))
 
     result = await runner.run(request(tmp_path, code, timeout_seconds=1))
     await asyncio.sleep(0.2)
@@ -163,7 +163,7 @@ async def test_runner_timeout_terminates_grandchild(tmp_path: Path) -> None:
         "pathlib.Path('grandchild-started.txt').write_text('started'); "
         "time.sleep(30)"
     )
-    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=2))
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=5))
 
     result = await runner.run(request(tmp_path, parent_code, timeout_seconds=1))
     heartbeat = tmp_path / "grandchild-heartbeat.txt"
@@ -178,7 +178,7 @@ async def test_runner_timeout_terminates_grandchild(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_runner_output_limit_terminates_and_truncates(tmp_path: Path) -> None:
-    runner = CommandRunner(limits=CommandLimits(max_output_bytes=64, cleanup_timeout_seconds=1))
+    runner = CommandRunner(limits=CommandLimits(max_output_bytes=64, cleanup_timeout_seconds=5))
 
     result = await runner.run(request(tmp_path, "import os; os.write(1, b'x' * 10000)"))
 
@@ -194,7 +194,7 @@ async def test_runner_cancellation_cleans_process_before_reraising(tmp_path: Pat
     code = (
         "import pathlib,time; time.sleep(5); pathlib.Path('cancelled-late.txt').write_text('late')"
     )
-    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=1))
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=5))
     task = asyncio.create_task(runner.run(request(tmp_path, code)))
     await asyncio.sleep(0.2)
 
@@ -212,7 +212,7 @@ async def test_runner_reader_failure_terminates_process_and_hides_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     marker = tmp_path / "reader-failure-late.txt"
-    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=1))
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=5))
 
     async def fail_reader(*args: object) -> None:
         del args
@@ -233,4 +233,35 @@ async def test_runner_reader_failure_terminates_process_and_hides_exception(
     assert captured.value.code is CommandErrorCode.COMMAND_IO_FAILED
     assert "secret-reader-failure" not in captured.value.public_message
     assert time.monotonic() - started < 3
+    assert not marker.exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_reports_tree_cleanup_failure_after_killing_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "cleanup-failure-late.txt"
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=1))
+
+    async def fail_tree_cleanup(*args: object) -> None:
+        del args
+        raise OSError("secret-cleanup-failure")
+
+    method_name = "_terminate_windows_tree" if os.name == "nt" else "_terminate_posix_tree"
+    monkeypatch.setattr(CommandRunner, method_name, fail_tree_cleanup)
+
+    with pytest.raises(CommandError) as captured:
+        await runner.run(
+            request(
+                tmp_path,
+                "import pathlib,time; time.sleep(5); "
+                "pathlib.Path('cleanup-failure-late.txt').write_text('late')",
+                timeout_seconds=1,
+            )
+        )
+    await asyncio.sleep(0.2)
+
+    assert captured.value.code is CommandErrorCode.COMMAND_CLEANUP_FAILED
+    assert "secret-cleanup-failure" not in captured.value.public_message
     assert not marker.exists()

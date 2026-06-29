@@ -14,7 +14,7 @@ class CommandLimits(BaseModel):
 
     max_output_bytes: int = Field(default=1024 * 1024, ge=1, le=8 * 1024 * 1024)
     max_timeout_seconds: int = Field(default=300, ge=1, le=3600)
-    cleanup_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    cleanup_timeout_seconds: float = Field(default=5.0, gt=0, le=10)
 
 
 class CommandRequest(BaseModel):

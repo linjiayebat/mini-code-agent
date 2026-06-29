@@ -13,6 +13,7 @@ from mini_code_agent.command.errors import CommandError, CommandErrorCode
 from mini_code_agent.command.models import CommandLimits, CommandRequest, CommandResult
 
 _READ_CHUNK_BYTES = 64 * 1024
+_OUTPUT_EXIT_GRACE_SECONDS = 0.1
 
 
 @dataclass(slots=True)
@@ -145,7 +146,12 @@ class CommandRunner:
                 reader.result()
             active_readers.difference_update(completed_readers)
             if output_wait in done and output_wait.result():
-                await self._terminate_tree(process)
+                exited, _ = await asyncio.wait(
+                    (process_wait,),
+                    timeout=_OUTPUT_EXIT_GRACE_SECONDS,
+                )
+                if not exited:
+                    await self._terminate_tree(process)
                 return False
             if process_wait in done:
                 process_wait.result()
@@ -235,22 +241,43 @@ class CommandRunner:
                 await self._terminate_windows_tree(process)
             else:
                 await self._terminate_posix_tree(process)
+        except (ProcessLookupError, ChildProcessError):
+            return
+        except (OSError, TimeoutError):
+            await self._kill_root(process)
+            raise CommandError(
+                CommandErrorCode.COMMAND_CLEANUP_FAILED,
+                "Command process tree could not be terminated.",
+            ) from None
+
+        try:
             async with asyncio.timeout(self._limits.cleanup_timeout_seconds):
                 await process.wait()
         except (ProcessLookupError, ChildProcessError):
             return
+        except TimeoutError:
+            await self._kill_root(process)
+
+    async def _kill_root(self, process: asyncio.subprocess.Process) -> None:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            return
+        except OSError:
+            raise CommandError(
+                CommandErrorCode.COMMAND_CLEANUP_FAILED,
+                "Command process could not be terminated.",
+            ) from None
+        try:
+            async with asyncio.timeout(self._limits.cleanup_timeout_seconds):
+                await process.wait()
+        except ProcessLookupError:
+            return
         except (OSError, TimeoutError):
-            try:
-                process.kill()
-                async with asyncio.timeout(self._limits.cleanup_timeout_seconds):
-                    await process.wait()
-            except ProcessLookupError:
-                return
-            except (OSError, TimeoutError):
-                raise CommandError(
-                    CommandErrorCode.COMMAND_CLEANUP_FAILED,
-                    "Command process could not be terminated.",
-                ) from None
+            raise CommandError(
+                CommandErrorCode.COMMAND_CLEANUP_FAILED,
+                "Command process could not be terminated.",
+            ) from None
 
     async def _terminate_windows_tree(
         self,
@@ -274,7 +301,9 @@ class CommandRunner:
             creationflags=creation_flags,
         )
         async with asyncio.timeout(self._limits.cleanup_timeout_seconds):
-            await killer.wait()
+            return_code = await killer.wait()
+        if return_code != 0:
+            raise OSError("Windows process-tree termination failed.")
 
     async def _terminate_posix_tree(
         self,
