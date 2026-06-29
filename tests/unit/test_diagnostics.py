@@ -28,3 +28,19 @@ def test_report_does_not_create_the_data_directory(tmp_path: Path) -> None:
     assert report.data_dir_exists is False
     assert report.data_dir_parent_writable is True
     assert data_dir.exists() is False
+
+
+def test_report_is_unhealthy_when_data_directory_is_a_file(tmp_path: Path) -> None:
+    data_file = tmp_path / "data-file"
+    data_file.write_text("not a directory", encoding="utf-8")
+    settings = AppSettings.model_validate({"data_dir": data_file})
+
+    report = build_diagnostic_report(
+        settings,
+        config_path=tmp_path / "missing.toml",
+        python_version=(3, 13),
+    )
+
+    assert report.data_dir_exists is True
+    assert report.data_dir_is_directory is False
+    assert report.healthy is False

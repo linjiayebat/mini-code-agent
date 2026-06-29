@@ -82,7 +82,12 @@ def doctor(
             error_console.print(f"[red]Configuration error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
 
-    configure_logging(settings.log_level.value)
+    configured_secrets = (
+        secret
+        for secret in (settings.anthropic_api_key, settings.openai_api_key)
+        if secret is not None
+    )
+    configure_logging(settings.log_level.value, secrets=configured_secrets)
     report = build_diagnostic_report(settings, config_path=config_path)
     if output_json:
         typer.echo(report.model_dump_json(indent=2))

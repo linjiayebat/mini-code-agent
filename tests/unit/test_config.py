@@ -82,3 +82,29 @@ def test_invalid_toml_section_has_an_actionable_error(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigurationError, match="must be a TOML table"):
         load_settings(config_path=config_path)
+
+
+def test_validation_error_does_not_expose_secret_input(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[mini_code_agent]
+openai_api_key = { value = "validation-secret" }
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError) as captured:
+        load_settings(config_path=config_path)
+
+    assert "validation-secret" not in str(captured.value)
+
+
+def test_invalid_environment_value_raises_configuration_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MINI_CODE_AGENT_LOG_LEVEL", "definitely-invalid")
+
+    with pytest.raises(ConfigurationError, match="Invalid application configuration"):
+        load_settings(config_path=tmp_path / "missing.toml")

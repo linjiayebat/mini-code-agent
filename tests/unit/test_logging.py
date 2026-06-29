@@ -48,3 +48,23 @@ def test_json_log_contains_safe_event_data() -> None:
     assert event["data"]["provider"] == "anthropic"
     assert event["data"]["api_key"] == "***"
     assert "must-not-appear" not in stream.getvalue()
+
+
+def test_json_log_redacts_configured_secrets_from_messages_and_exceptions() -> None:
+    stream = StringIO()
+    logger = configure_logging(
+        "info",
+        stream=stream,
+        secrets=("message-secret", "exception-secret"),
+    )
+
+    logger.info("provider token=%s", "message-secret")
+    try:
+        raise RuntimeError("exception-secret")
+    except RuntimeError:
+        logger.exception("provider failed")
+
+    rendered = stream.getvalue()
+    assert "message-secret" not in rendered
+    assert "exception-secret" not in rendered
+    assert rendered.count("***") >= 2

@@ -65,3 +65,32 @@ def test_doctor_returns_configuration_exit_code_two(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "must be a TOML table" in result.stderr
+
+
+def test_doctor_invalid_environment_returns_json_exit_code_two(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MINI_CODE_AGENT_LOG_LEVEL", "definitely-invalid")
+
+    result = runner.invoke(app, ["doctor", "--json"])
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stderr)
+    assert "Invalid application configuration" in payload["error"]
+    assert "Traceback" not in result.stderr
+
+
+def test_doctor_validation_error_never_prints_secret(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-secret.toml"
+    config_path.write_text(
+        """
+[mini_code_agent]
+anthropic_api_key = { value = "validation-secret" }
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--config", str(config_path), "--json"])
+
+    assert result.exit_code == 2
+    assert "validation-secret" not in result.stderr

@@ -31,7 +31,11 @@ def default_config_path() -> Path:
 
 
 class AppSettings(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        hide_input_in_errors=True,
+    )
 
     log_level: LogLevel = LogLevel.INFO
     data_dir: Path = Field(default_factory=default_data_dir)
@@ -54,6 +58,7 @@ class EnvironmentSettings(BaseSettings):
         env_prefix="MINI_CODE_AGENT_",
         extra="ignore",
         case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     log_level: LogLevel | None = None
@@ -86,14 +91,14 @@ def load_settings(
 ) -> AppSettings:
     path = config_path or default_config_path()
     file_values = _read_toml(path)
-    environment = EnvironmentSettings()
-    environment_values = environment.model_dump(exclude_none=True)
-    merged = {
-        **file_values,
-        **environment_values,
-        **dict(overrides or {}),
-    }
     try:
+        environment = EnvironmentSettings()
+        environment_values = environment.model_dump(exclude_none=True)
+        merged = {
+            **file_values,
+            **environment_values,
+            **dict(overrides or {}),
+        }
         return AppSettings.model_validate(merged)
     except ValidationError as exc:
         raise ConfigurationError(f"Invalid application configuration: {exc}") from exc
