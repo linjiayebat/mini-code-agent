@@ -82,13 +82,15 @@ schema internals, executor exceptions, or stack traces.
   "start_line": 1,
   "end_line": 120,
   "total_lines": 240,
+  "sha256": "64-lowercase-hex-characters",
   "content": "...",
   "truncated": true
 }
 ```
 
-Line endings are not normalized. Reading past EOF returns empty content and the real total line
-count.
+The SHA-256 covers the complete raw file bytes, even when a line window is returned. It is the
+optimistic-concurrency token required by `edit_file` and existing-file `write_file`. Line endings
+are not normalized. Reading past EOF returns empty content and the real total line count.
 
 ## Search Result
 

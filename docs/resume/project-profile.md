@@ -1,13 +1,14 @@
 # Mini CodeAgent 简历项目包
 
-> 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider 与 M2a 只读 Workspace/Tool
-> Registry 已在本地完成；写入审批、真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
+> 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider、M2a 只读 Workspace/Tool
+> Registry 与 M2b 受治理文件写入已在本地完成；Shell、真实凭证联调、远程 CI 和
+> GitHub Release 尚未执行。
 >
 > 本文中的功能、性能和指标是目标或验收方案。只有得到代码、测试、CI、Benchmark 或 Release 证据后，才能改写为已完成成果。
 
 ## 1. 30 秒项目介绍
 
-正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、受限 Read/Search 组成的只读代码理解链路。
+正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、审批预览和哈希防冲突 Write/Edit 组成的代码理解与受治理修改链路。
 
 规划能力包括可解释 Agent Loop、强类型 Tool Registry、安全 Workspace、allow/ask/deny 权限决策、文件编辑与 Shell 工具、Context Budget 与压缩、Session/Checkpoint/Resume、结构化 Trace，以及 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
 
@@ -24,7 +25,7 @@
 
 最终技术栈以 `pyproject.toml`、ADR 和发布版本为准。
 
-M0/M1/M1b/M2a 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
+M0/M1/M1b/M2a/M2b 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
 Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
 JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
 
@@ -36,7 +37,7 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 | 数据模型 | Pydantic v2、JSON Schema Draft 2020-12 |
 | CLI | Typer、Rich |
 | 工具系统 | 强类型 Tool Registry、统一 Tool Result/Error |
-| 文件能力 | `pathlib`、`stat/fstat`、Workspace containment、UTF-8、Read/Literal Search |
+| 文件能力 | `pathlib`、`stat/fstat`、SHA-256、`difflib`、原子 Write、唯一匹配 Edit |
 | Shell 能力 | `subprocess`、PowerShell/POSIX shell、超时、取消、输出限制 |
 | 状态持久化 | SQLite、版本化 Session/Checkpoint Schema、文件大对象存储 |
 | 可观测性 | 类型化事件、JSONL Trace、correlation ID、usage、脱敏 |
@@ -71,8 +72,10 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 | 强类型 Tool Registry | 模型参数和动态工具容易产生类型漂移、异常泄漏与错误关联 | Draft 2020-12 Schema、单次 definition snapshot、`Protocol`、统一 Result/Error、结果上限 | 构造时验证 Schema，执行前校验参数，按名称分发并验证返回 ID/类型/大小 | 阻断非法参数进入执行器，防止动态定义漂移、异常泄漏和无界结果 | M2a 99 项专项测试覆盖 Registry/Workspace/Read/Search/Agent 集成；1 项 symlink 权限跳过 |
 | 安全 Workspace | Agent 文件权限过大可能读取仓库外文件或平台特殊路径 | 词法白名单、`resolve(strict=True)`、`relative_to`、symlink/junction 与 `stat/fstat`、文件/遍历预算 | 将模型路径解析、文件类型、大小、编码和目录遍历统一限制在根目录 | 防止 `../`、绝对/盘符/UNC、ADS/设备名、`.git`、链接逃逸和资源耗尽 | M2a 99 项专项测试通过；Linux symlink CI 待验证 |
 | 受限 Read/Search | 直接把仓库全文送入模型成本高，模型正则和大文件会造成不可控计算 | 保留换行的行窗口读取、literal search、确定性排序、Unicode casefold 位置映射、结果/preview 上限 | 按相对路径读取代码并返回 path/line/column/preview | 降低无效上下文，避免 ReDoS、错误 Unicode 列号和超大工具输出 | Read/Search 单测与“Read → Search → Final”三轮 Agent 集成通过 |
-| 权限决策系统 | 文件写入、命令和网络操作具有不同风险 | Policy Engine、风险分级、规则匹配、交互审批、默认拒绝 | 按工具、参数、路径决定 allow/ask/deny | 保留人在回路，控制真实副作用 | Policy matrix、审批 Trace、安全回归测试 |
-| 跨平台 Edit/Shell | Windows/Linux 的 shell、路径、编码和信号行为不同 | `subprocess`、Shell Adapter、UTF-8、超时、取消、输出截断 | 可靠编辑文件并执行受控开发命令 | 避免进程失控、日志爆量和平台漂移 | Windows/Linux CI、超时终止测试 |
+| 权限决策系统 | 模型请求动作不等于系统应执行，写入、命令和网络风险也不同 | 不可变首匹配 Policy Rule、风险/资源/会话/信任源匹配、`GovernedToolExecutor`、交互审批、非交互 fail-closed | 在执行前依次完成 Schema、预览、allow/ask/deny 和审批；Agent Runtime 拒绝未治理副作用工具 | 防止 Prompt 自授权、未审批落盘和错误配置的非交互自动批准 | 26 项执行器/Registry 测试；拒绝、显式批准、非交互零写入均有回归测试 |
+| 防冲突 Write/Edit | Agent 基于旧上下文写文件会覆盖用户或其他进程的新修改 | `read_file` 原始字节 SHA-256、乐观并发前置条件、create-only、唯一 literal match、审批后重复校验 | 创建新文件、哈希匹配替换、精确单点编辑并返回前后哈希和 diff | 将静默覆盖转化为可重试 `conflict`，拒绝零匹配、多匹配和 no-op 编辑 | 32 项相关单测与 3 项真实 Agent 治理写入集成测试通过 |
+| 原子文件发布 | 写盘中断可能留下半个源文件，审批界面也不能展示无界内容 | 同目录 `NamedTemporaryFile`、flush/`fsync`、权限位保留、`os.link`/`os.replace`、失败清理、32 KiB diff 上限 | 成功时一次发布完整内容，失败时保留原文件并清理临时文件 | 避免部分写入和临时文件泄漏，控制审批与 ToolResult 体积 | 故障注入、陈旧哈希、大小/NUL/编码、diff 截断和原文件不变测试 |
+| 跨平台 Shell | Windows/Linux 的 shell、路径、编码和信号行为不同 | `subprocess`、Shell Adapter、超时、取消、输出截断 | 执行受控开发命令 | 避免进程失控、日志爆量和平台漂移 | M2c 待实现，不作为当前成果 |
 | Context Budget | 长任务会超过上下文窗口，直接截断会丢关键事实 | token estimator、消息优先级、滚动摘要、工具输出落盘 | 预算预估、压缩、保留任务目标和未完成项 | 降低上下文超限和无效 token 消耗 | 压缩前后 token、关键信息 golden test |
 | Checkpoint/Resume | 网络错误、进程退出和人工中断不应导致全部重跑 | SQLite、版本化 Schema、原子快照、幂等恢复 | 保存会话状态并从中断点继续 | 提高长任务容错和问题复现能力 | 故障注入场景、恢复成功率和耗时待回填 |
 | 结构化 Trace | 文本日志无法回答 Agent 为什么执行某动作 | 类型化事件、correlation ID、耗时、usage、JSONL、脱敏 | 记录模型、工具、权限、压缩、恢复和错误事件 | 支持调试、审计、成本分析和行为评估 | Trace Schema 覆盖、解析测试、脱敏测试 |
@@ -156,6 +159,10 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
   路径逃逸、Windows 特殊路径、链接、特殊/超大/二进制文件及遍历预算超限。
 - 实现保留原始换行的 `read_file` 和 Unicode 列号正确的 literal `search_text`，通过
   `asyncio.to_thread` 避免有界磁盘 I/O 阻塞 Agent 事件循环。
+- 实现模型不可自授权的 allow/ask/deny Policy 与治理执行器，写操作先生成相对路径、
+  风险、理由和 bounded diff，只有显式交互审批后才允许落盘，非交互 `ask` 默认拒绝。
+- 以原始字节 SHA-256 实现乐观并发控制，配合 create-only、唯一文本匹配、审批后重复
+  校验和同目录原子替换，将陈旧修改从静默覆盖转化为无副作用 `conflict`。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
 - 建立 Ruff、严格 Pyright、Pytest 覆盖率门槛和哈希约束构建，Python 3.12/3.13
   各 290 项通过、2 项因 Windows symlink 权限跳过，分支覆盖率 90.33%。

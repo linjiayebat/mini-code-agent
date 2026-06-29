@@ -6,8 +6,8 @@
 | L1 Agent Loop | Complete locally | 27 Runtime tests + deterministic ToolCall integration |
 | L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 124 focused tests passed |
 | L3 Tool Registry | Complete locally | Draft 2020-12 validation, dispatch and bounded result contract |
-| L4 Workspace and Policy | In progress | WorkspaceBoundary complete; Policy/approval scheduled for M2b |
-| L5 File/Edit/Shell/Git tools | In progress | Read/Search complete; Write/Edit/Shell/Git scheduled for M2b/M2c |
+| L4 Workspace and Policy | Complete locally | WorkspaceBoundary + deterministic Policy + approval governance |
+| L5 File/Edit/Shell/Git tools | In progress | Read/Search/Write/Edit complete; Shell/Git scheduled for M2c |
 | L6 Context Budget | Not started | |
 | L7 Session/Checkpoint/Trace | Not started | |
 | L8 Git/test/repair | Not started | |
@@ -192,3 +192,45 @@
   3.13.
 - Package version: `0.4.0a0`; local milestone tag target: `v0.4.0-alpha.0`.
 - Linux symlink behavior still requires remote CI evidence; no remote result is claimed.
+
+## M2b Policy and Governed Write Notes
+
+- Permission is a control-plane decision outside the prompt. The model proposes a ToolCall but
+  cannot turn `deny` into `allow` or approve its own `ask`.
+- `GovernedToolExecutor` is analogous to a Spring interceptor: Schema validation, preview,
+  policy, approval, and dispatch happen in a fixed order around tool execution.
+- Ordered first-match rules are intentionally simple. Determinism and explainability are more
+  valuable here than a hidden rule-merging algorithm.
+- Non-interactive `ask` is denied before the approval handler. This prevents an accidentally
+  permissive handler from converting unattended execution into implicit approval.
+- `read_file` hashes complete raw bytes, including content outside a returned line window. The
+  hash plays the role of a JPA optimistic-lock version.
+- Existing writes require the exact hash; new writes are create-only. An approval therefore
+  cannot silently authorize replacing a different ordinary snapshot.
+- Edit requires exactly one literal match. This rejects ambiguous patches instead of guessing
+  which occurrence the model intended.
+- Same-directory temp files plus `os.replace` prevent partial replacement. They do not provide
+  database isolation against a hostile concurrent external writer.
+- Approval previews are bounded and contain only relative resources, static summary, bounded
+  reason, risk, and diff. Approval is not code review or sandboxing.
+- Blocking filesystem mutation runs through `asyncio.to_thread`, keeping the Agent event loop
+  responsive while retaining strict byte and diff budgets.
+
+## M2b Exercises
+
+1. Trace one `edit_file` call from JSON Schema validation to the second hash check and list every
+   point where it can fail without mutation.
+2. Compare `expected_sha256` with JPA `@Version`: identify what both prevent and what filesystem
+   replacement cannot guarantee.
+3. Explain why an unattended `ask` must not call an auto-approve handler.
+4. Change a file after preview but before execute and verify that execution returns `conflict`.
+5. Explain why `os.replace` prevents partial content but not the final-check race.
+
+## M2b Local Verification
+
+- Governed-write focused tests: 32 unit tests plus 3 end-to-end integration tests passed.
+- Full development suite on Python 3.13.14: 348 passed; 2 Windows symlink privilege skips.
+- Branch-aware package coverage: 90.35%, above the configured 85% gate.
+- Ruff format/check and strict Pyright: passed.
+- Python 3.12/3.13, security scan, build, and installed artifact smoke evidence will be recorded
+  during the `v0.5.0-alpha.0` release gate; they are not claimed yet.

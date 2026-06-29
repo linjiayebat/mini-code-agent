@@ -299,6 +299,10 @@
 - M2a Read/Search 拒绝越界，限制文件/字节/深度/结果/行长/preview。
 - Search 只支持 literal，不接受模型正则，避免 ReDoS。
 - 二进制、超大和敏感文件默认拒绝。
+- M2b Write/Edit 使用 `read_file` 返回的原始字节 SHA-256 作为乐观锁。
+- 新文件使用 create-only；已有文件在审批后再次校验哈希再原子替换。
+- Edit 只允许唯一 literal 匹配，零匹配、多匹配和 no-op 都拒绝。
+- 审批预览限制为相对路径、风险、理由和 bounded unified diff。
 
 **验收练习**
 
@@ -309,7 +313,7 @@
 
 **Java/Flink 迁移类比**
 
-| 现有经验 | M2a 对应概念 |
+| 现有经验 | M2a/M2b 对应概念 |
 |---|---|
 | Java NIO `Path.normalize/toRealPath` | `Path.resolve(strict=True)` + `relative_to` |
 | Bean Validation/Jackson Schema | Pydantic + JSON Schema ToolCall 边界 |
@@ -317,6 +321,19 @@
 | Flink keyed state | 按 ToolCall ID 保持调用和结果关联 |
 | Flink state/throughput quota | 文件数、总字节、结果数和深度预算 |
 | Source connector dirty input | 仓库文本、路径和模型参数全部不可信 |
+| Spring interceptor / Security filter | `GovernedToolExecutor` 固定执行治理顺序 |
+| JPA `@Version` | SHA-256 乐观并发前置条件 |
+| Flink checkpoint state version | Read hash 标识 Edit 所依据的文件快照 |
+| 两阶段发布 | 临时文件写完并校验后通过 `os.replace` 一次发布 |
+
+**M2b 代码阅读顺序**
+
+1. `policy/models.py`：先理解决策、风险、资源、会话与信任源。
+2. `policy/engine.py`：跟踪首匹配规则和安全默认值。
+3. `policy/executor.py`：跟踪 Schema、Preview、Policy、Approval、Dispatch 顺序。
+4. `workspace/boundary.py`：跟踪哈希前置条件、临时文件和原子发布。
+5. `tools/write_file.py` 与 `tools/edit_file.py`：理解工具语义如何复用边界。
+6. `tests/integration/test_governed_write_agent.py`：验证 Read -> Hash -> Edit -> Approval。
 
 ### L6：Context Budget 与压缩
 

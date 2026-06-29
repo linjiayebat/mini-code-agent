@@ -2,10 +2,10 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M2a provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
-> adapters, a schema-validating Tool Registry, a cross-platform read-only Workspace boundary,
-> and bounded Read/Search tools. Write/Shell permissions, persistence, and live-provider CI are
-> not implemented yet.
+> Status: pre-alpha. M2b provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
+> Read/Search, and policy-governed conflict-aware Write/Edit tools. Shell execution, persistence,
+> and live-provider CI are not implemented yet.
 
 ## Requirements
 
@@ -87,6 +87,14 @@ Model paths must be workspace-relative POSIX-style paths. The boundary rejects l
 cross-platform special path forms, non-regular/binary/non-UTF-8 files, and resource-limit
 violations. This is a filesystem policy, not an OS sandbox.
 
+## Governed Writes
+
+Side-effecting tools must be composed through `GovernedToolExecutor`. The secure defaults allow
+reads, ask for interactive approval on writes, and deny execute/network actions. Existing files
+require the SHA-256 returned by `read_file`; new files use create-only semantics.
+
+See `docs/architecture/governed-writes.md` for the complete composition and concurrency limits.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -96,9 +104,11 @@ violations. This is a filesystem policy, not an OS sandbox.
 - Agent Core: `docs/architecture/agent-core.md`
 - Provider adapters: `docs/architecture/provider-adapters.md`
 - Read-only tools: `docs/architecture/readonly-tools.md`
+- Governed writes: `docs/architecture/governed-writes.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
+- Governed file writes ADR: `docs/adr/0004-governed-file-writes.md`
 
 ## License
 

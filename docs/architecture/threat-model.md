@@ -21,17 +21,21 @@
 - Secret-safe settings and recursive log redaction.
 - Explicit configuration precedence.
 - No tool execution in M0.
-- Future tools must pass Schema, Workspace, and Policy checks.
+- Side-effecting tools must pass Schema, Workspace, Policy, preview, and approval checks.
 - Trace data must be size-limited and redacted.
 - M2a read-only tools pass Draft 2020-12 Schema validation and one WorkspaceBoundary.
 - Model paths reject cross-platform traversal, link/junction, `.git`, ADS/device, type, size,
   binary, and encoding hazards.
 - Workspace traversal and ToolResult content have explicit resource limits.
+- M2b write tools use bounded previews, interactive-only approval for `ask`, SHA-256
+  preconditions, create-only publication, and same-directory atomic replacement.
+- Non-interactive `ask` decisions fail closed without invoking an approval handler.
 
 ## Non-claims
 
 - Regex command filtering is not a sandbox.
 - Workspace path checks are not process isolation.
 - Workspace checks do not eliminate TOCTOU when another process can mutate the tree.
+- Hash revalidation narrows but does not eliminate the race between final check and replacement.
 - Human approval does not make malicious code safe.
 - MCP connection does not establish trust.

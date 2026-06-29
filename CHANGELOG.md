@@ -4,6 +4,22 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic allow/ask/deny Policy Engine with risk, resource, session, and trust matching.
+- Governed executor with bounded action previews and explicit interactive write approval.
+- Conflict-aware `write_file` and unique-match `edit_file` with raw-byte SHA-256 preconditions.
+- Same-directory atomic create/replace primitives with bounded unified diff evidence.
+- SHA-256 snapshots in `read_file` results for read-modify-write workflows.
+
+### Security
+
+- Agent Runtime rejects side-effecting tools that are not composed behind governed execution.
+- Non-interactive `ask` decisions deny without invoking an approval handler.
+- Existing writes reject missing or stale hashes; new writes use create-only publication.
+- Workspace mutation failures preserve target content, clean temporary files, and expose only
+  static errors and workspace-relative paths.
+
 ## [0.4.0-alpha.0] - 2026-06-29
 
 ### Added
