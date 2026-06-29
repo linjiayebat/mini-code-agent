@@ -423,6 +423,7 @@ async def test_transport_closes_only_an_internally_owned_client() -> None:
     [
         ("provider.test", 3, 1024),
         ("ftp://provider.test", 3, 1024),
+        ("http://provider.test", 3, 1024),
         ("https://user:password@provider.test", 3, 1024),
         ("https://provider.test?secret=value", 3, 1024),
         ("https://provider.test", 0, 1024),
@@ -441,6 +442,25 @@ def test_transport_rejects_unsafe_or_unbounded_configuration(
             timeout_seconds=timeout_seconds,
             max_response_bytes=max_response_bytes,
         )
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://localhost:11434/v1",
+        "http://127.0.0.1:8080/v1",
+        "http://[::1]:8080/v1",
+    ],
+)
+@pytest.mark.asyncio
+async def test_transport_allows_plain_http_only_for_loopback(base_url: str) -> None:
+    transport = ProviderHttpTransport(
+        base_url=base_url,
+        timeout_seconds=3,
+    )
+
+    assert transport.is_closed is False
+    await transport.aclose()
 
 
 @pytest.mark.parametrize(

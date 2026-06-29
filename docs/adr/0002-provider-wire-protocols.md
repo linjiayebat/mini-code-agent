@@ -85,7 +85,8 @@ contract tests, and a versioned decision.
 
 - Non-streaming bodies and cumulative SSE data have a configurable limit capped at 16 MiB.
 - Timeout is bounded to 600 seconds.
-- Base URLs reject credentials, query strings, fragments, and non-HTTP schemes.
+- Base URLs require HTTPS except for loopback model servers, and reject credentials, query
+  strings, fragments, and non-HTTP schemes.
 - Provider endpoint paths reject traversal, query strings, fragments, and absolute URLs.
 - Extra compatibility headers cannot replace authorization or content type.
 - Public exceptions never include raw provider bodies, request payloads, API keys, or raw

@@ -18,6 +18,7 @@ _MAX_TIMEOUT_SECONDS: Final = 600.0
 _MAX_RESPONSE_BYTES: Final = 16 * 1024 * 1024
 _MAX_REQUEST_ID_LENGTH: Final = 128
 _ENDPOINT_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,511}$")
+_LOOPBACK_HOSTS: Final = frozenset({"localhost", "127.0.0.1", "::1"})
 _JSON_OBJECT_ADAPTER = TypeAdapter(dict[str, JsonValue])
 
 type JsonObject = dict[str, JsonValue]
@@ -199,6 +200,8 @@ def _validate_base_url(value: str) -> str:
         or url.fragment
     ):
         raise ValueError("base_url must be an HTTP(S) origin or path without credentials or query")
+    if url.scheme == "http" and url.host not in _LOOPBACK_HOSTS:
+        raise ValueError("plain HTTP provider URLs are allowed only for loopback hosts")
     return value.rstrip("/")
 
 

@@ -111,6 +111,9 @@ Provider bodies and transport exception strings are untrusted and may contain se
 errors therefore contain only a normalized code, a static safe message, and retryability.
 Request IDs are accepted only from known headers and truncated to 128 characters.
 
+Provider URLs require HTTPS. Plain HTTP is accepted only for `localhost`, `127.0.0.1`, and `::1`
+so a local model server remains usable without allowing API keys over remote cleartext links.
+
 The adapter does not retry. A future retry policy must consume normalized errors and enforce a
 total attempt/time/cost budget at the orchestration layer.
 
