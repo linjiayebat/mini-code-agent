@@ -9,7 +9,7 @@ from mini_code_agent.context.errors import ContextError, ContextErrorCode
 from mini_code_agent.context.estimator import TokenEstimator, Utf8TokenEstimator
 from mini_code_agent.context.models import ContextLimits, ContextWindow
 from mini_code_agent.domain.messages import Message, MessageRole
-from mini_code_agent.tools.base import ToolDefinition
+from mini_code_agent.tools.base import SideEffect, ToolDefinition
 
 
 class ContextPreparer(Protocol):
@@ -26,6 +26,7 @@ class ContextPreparer(Protocol):
 class _ContextUnit:
     messages: tuple[Message, ...]
     tool_exchange: bool
+    pinned: bool
 
 
 class ContextManager:
@@ -70,7 +71,7 @@ class ContextManager:
         messages: tuple[Message, ...],
         tools: tuple[ToolDefinition, ...],
     ) -> ContextWindow:
-        goal, units = _group_transcript(messages)
+        goal, units = _group_transcript(messages, tools)
         fingerprint = _transcript_fingerprint(messages)
         estimated_before = self._estimate(system_prompt, messages, tools)
         budget = self._limits.usable_input_tokens
@@ -94,12 +95,6 @@ class ContextManager:
                 ContextErrorCode.FIXED_CONTENT_TOO_LARGE,
                 "Fixed model context exceeds the configured limit.",
             )
-        if len(units) == 1:
-            raise ContextError(
-                ContextErrorCode.LATEST_EXCHANGE_TOO_LARGE,
-                "Latest model context exchange exceeds the configured limit.",
-            )
-
         retained_start = len(units) - 1
         candidate = self._build_candidate(
             system_prompt=system_prompt,
@@ -110,12 +105,24 @@ class ContextManager:
             tools=tools,
         )
         if candidate.estimated_after > budget:
+            latest_candidate = self._build_latest_candidate(
+                system_prompt=system_prompt,
+                goal=goal,
+                units=units,
+                fingerprint=fingerprint,
+                tools=tools,
+            )
+            if latest_candidate.estimated_after <= budget:
+                raise ContextError(
+                    ContextErrorCode.PINNED_HISTORY_TOO_LARGE,
+                    "Required model context history exceeds the configured limit.",
+                )
             raise ContextError(
                 ContextErrorCode.LATEST_EXCHANGE_TOO_LARGE,
                 "Latest model context exchange exceeds the configured limit.",
             )
 
-        while retained_start > 1:
+        while retained_start > 0:
             next_start = retained_start - 1
             next_candidate = self._build_candidate(
                 system_prompt=system_prompt,
@@ -147,18 +154,66 @@ class ContextManager:
         fingerprint: str,
         tools: tuple[ToolDefinition, ...],
     ) -> ContextWindow:
-        omitted = units[:retained_start]
+        selected_units = tuple(
+            unit
+            for index, unit in enumerate(units)
+            if unit.pinned or index >= retained_start
+        )
+        omitted = tuple(
+            unit
+            for index, unit in enumerate(units)
+            if not unit.pinned and index < retained_start
+        )
+        return self._assemble_candidate(
+            system_prompt=system_prompt,
+            goal=goal,
+            selected_units=selected_units,
+            omitted=omitted,
+            fingerprint=fingerprint,
+            tools=tools,
+        )
+
+    def _build_latest_candidate(
+        self,
+        *,
+        system_prompt: str,
+        goal: Message,
+        units: tuple[_ContextUnit, ...],
+        fingerprint: str,
+        tools: tuple[ToolDefinition, ...],
+    ) -> ContextWindow:
+        return self._assemble_candidate(
+            system_prompt=system_prompt,
+            goal=goal,
+            selected_units=(units[-1],),
+            omitted=units[:-1],
+            fingerprint=fingerprint,
+            tools=tools,
+        )
+
+    def _assemble_candidate(
+        self,
+        *,
+        system_prompt: str,
+        goal: Message,
+        selected_units: tuple[_ContextUnit, ...],
+        omitted: tuple[_ContextUnit, ...],
+        fingerprint: str,
+        tools: tuple[ToolDefinition, ...],
+    ) -> ContextWindow:
         omitted_messages = sum(len(unit.messages) for unit in omitted)
         omitted_exchanges = sum(unit.tool_exchange for unit in omitted)
-        marker = self._marker(
-            omitted_messages=omitted_messages,
-            omitted_exchanges=omitted_exchanges,
-            fingerprint=fingerprint,
-        )
-        prepared_system = f"{system_prompt}\n\n{marker}" if system_prompt else marker
+        prepared_system = system_prompt
+        if omitted:
+            marker = self._marker(
+                omitted_messages=omitted_messages,
+                omitted_exchanges=omitted_exchanges,
+                fingerprint=fingerprint,
+            )
+            prepared_system = f"{system_prompt}\n\n{marker}" if system_prompt else marker
         selected = (
             goal,
-            *(message for unit in units[retained_start:] for message in unit.messages),
+            *(message for unit in selected_units for message in unit.messages),
         )
         estimated_after = self._estimate(prepared_system, selected, tools)
         return ContextWindow(
@@ -204,18 +259,26 @@ class ContextManager:
 
 def _group_transcript(
     messages: tuple[Message, ...],
+    tools: tuple[ToolDefinition, ...],
 ) -> tuple[Message, tuple[_ContextUnit, ...]]:
     if not messages or messages[0].role is not MessageRole.USER or messages[0].tool_results:
         raise _invalid_transcript()
     goal = messages[0]
     units: list[_ContextUnit] = []
+    tool_side_effects = {tool.name: tool.side_effect for tool in tools}
     index = 1
     while index < len(messages):
         message = messages[index]
         if message.tool_results:
             raise _invalid_transcript()
         if not message.tool_calls:
-            units.append(_ContextUnit(messages=(message,), tool_exchange=False))
+            units.append(
+                _ContextUnit(
+                    messages=(message,),
+                    tool_exchange=False,
+                    pinned=False,
+                )
+            )
             index += 1
             continue
         if index + 1 >= len(messages):
@@ -232,10 +295,15 @@ def _group_transcript(
             or set(call_ids) != set(result_ids)
         ):
             raise _invalid_transcript()
+        pinned = any(
+            tool_side_effects.get(call.name) is not SideEffect.READ_ONLY
+            for call in message.tool_calls
+        )
         units.append(
             _ContextUnit(
                 messages=(message, result_message),
                 tool_exchange=True,
+                pinned=pinned,
             )
         )
         index += 2

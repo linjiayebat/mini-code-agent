@@ -7,6 +7,7 @@ class ContextErrorCode(StrEnum):
     INVALID_TRANSCRIPT = "invalid_transcript"
     FIXED_CONTENT_TOO_LARGE = "fixed_content_too_large"
     LATEST_EXCHANGE_TOO_LARGE = "latest_exchange_too_large"
+    PINNED_HISTORY_TOO_LARGE = "pinned_history_too_large"
     WINDOW_BUILD_FAILED = "window_build_failed"
 
 
