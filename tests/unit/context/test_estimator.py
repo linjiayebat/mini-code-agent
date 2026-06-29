@@ -4,7 +4,7 @@ import pytest
 from pydantic import JsonValue, ValidationError
 
 from mini_code_agent.context.estimator import Utf8TokenEstimator
-from mini_code_agent.context.models import ContextLimits
+from mini_code_agent.context.models import ContextLimits, ContextWindow
 from mini_code_agent.domain.content import ToolCall
 from mini_code_agent.domain.messages import Message, MessageRole
 from mini_code_agent.tools.base import SideEffect, ToolDefinition
@@ -137,3 +137,28 @@ def test_estimator_repeated_calls_return_same_positive_value() -> None:
 
     assert first == second
     assert first > 0
+
+
+@pytest.mark.parametrize(
+    ("estimated_before", "estimated_after", "omitted_messages", "omitted_exchanges"),
+    [
+        (10, 11, 0, 0),
+        (10, 10, 1, 1),
+    ],
+)
+def test_context_window_rejects_inconsistent_metadata(
+    estimated_before: int,
+    estimated_after: int,
+    omitted_messages: int,
+    omitted_exchanges: int,
+) -> None:
+    with pytest.raises(ValidationError):
+        ContextWindow(
+            system_prompt="",
+            messages=(Message.user_text("goal"),),
+            estimated_before=estimated_before,
+            estimated_after=estimated_after,
+            omitted_messages=omitted_messages,
+            omitted_tool_exchanges=omitted_exchanges,
+            transcript_sha256="0" * 64,
+        )

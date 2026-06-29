@@ -37,6 +37,15 @@ class ContextWindow(BaseModel):
     omitted_tool_exchanges: int = Field(default=0, ge=0)
     transcript_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @model_validator(mode="after")
+    def validate_estimates_and_omissions(self) -> Self:
+        if (
+            self.estimated_after > self.estimated_before
+            or self.omitted_tool_exchanges * 2 > self.omitted_messages
+        ):
+            raise ValueError("context window metadata is inconsistent")
+        return self
+
     @computed_field
     @property
     def compacted(self) -> bool:
