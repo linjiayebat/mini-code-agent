@@ -38,6 +38,10 @@ Anthropic requires tool results to appear first in the next user content array. 
 requires one `tool` message per result. The domain model allows a mixed user message, so each
 adapter expands or orders it to satisfy its wire contract.
 
+Chat Completions has no dedicated `is_error` field. Successful tool content is sent unchanged;
+failed results are encoded as a compact `{"content": "...", "is_error": true}` envelope so the
+model does not lose the domain error signal.
+
 ## Response Conversion
 
 | Domain finish reason | Anthropic | OpenAI-compatible |
