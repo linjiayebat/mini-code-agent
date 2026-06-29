@@ -80,7 +80,7 @@ replaying uncheckpointed side effects.
 
 ## Task 8: End-to-End Fault Injection
 
-**Status:** Pending
+**Status:** Complete
 
 - Reopen and resume from a stable Checkpoint through final completion.
 - Replay explicitly permitted model/read-only work.

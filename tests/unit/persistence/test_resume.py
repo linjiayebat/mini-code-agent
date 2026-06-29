@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -354,3 +355,31 @@ def test_resume_claim_rolls_back_both_events_when_consumption_fails(
     with pytest.raises(PersistenceError) as missing:
         store.get_run("session-1", "run-2")
     assert missing.value.code is PersistenceErrorCode.RUN_NOT_FOUND
+
+
+def test_concurrent_resume_claim_has_exactly_one_winner(tmp_path: Path) -> None:
+    store = active_store(tmp_path / "state.db")
+    saved = store.checkpoints("session-1").save(draft())
+    plan = store.analyze_resume(
+        "session-1",
+        saved.checkpoint_id,
+        compatibility=compatibility(),
+    )
+
+    def attempt(run_id: str) -> str:
+        try:
+            return store.claim_resume(
+                plan,
+                resumed_run_id=run_id,
+                max_turns=8,
+            ).resumed_run_id
+        except PersistenceError as exc:
+            return exc.code.value
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = tuple(pool.map(attempt, ("run-2", "run-3")))
+
+    winners = [result for result in results if result in {"run-2", "run-3"}]
+    losers = [result for result in results if result == "checkpoint_stale"]
+    assert len(winners) == 1
+    assert len(losers) == 1
