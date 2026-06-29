@@ -2,9 +2,10 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M1b provides a provider-neutral, bounded Agent Core plus programmatic
-> Anthropic Messages and OpenAI-compatible Chat Completions adapters. File tools, interactive
-> permissions, persistence, and live-provider CI are not implemented yet.
+> Status: pre-alpha. M2a provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> adapters, a schema-validating Tool Registry, a cross-platform read-only Workspace boundary,
+> and bounded Read/Search tools. Write/Shell permissions, persistence, and live-provider CI are
+> not implemented yet.
 
 ## Requirements
 
@@ -67,6 +68,25 @@ Applications must call `await provider.aclose()` for internally created clients.
 `httpx.AsyncClient` instances remain caller-owned. M1b tests use `httpx.MockTransport`; no live
 API success is claimed without a separate credentialed smoke test.
 
+## Read-only Workspace
+
+```python
+from pathlib import Path
+
+from mini_code_agent.tools import ReadFileTool, SearchTextTool, ToolRegistry
+from mini_code_agent.workspace import WorkspaceBoundary
+
+workspace = WorkspaceBoundary(Path.cwd())
+tools = ToolRegistry([
+    ReadFileTool(workspace),
+    SearchTextTool(workspace),
+])
+```
+
+Model paths must be workspace-relative POSIX-style paths. The boundary rejects links, `.git`,
+cross-platform special path forms, non-regular/binary/non-UTF-8 files, and resource-limit
+violations. This is a filesystem policy, not an OS sandbox.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -75,8 +95,10 @@ API success is claimed without a separate credentialed smoke test.
 - Resume evidence: `docs/resume/project-profile.md`
 - Agent Core: `docs/architecture/agent-core.md`
 - Provider adapters: `docs/architecture/provider-adapters.md`
+- Read-only tools: `docs/architecture/readonly-tools.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
+- Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
 
 ## License
 

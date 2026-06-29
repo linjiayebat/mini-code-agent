@@ -228,15 +228,15 @@
 
 **Python**
 
-- Pydantic、JSON Schema、Generics。
-- 同步与异步函数的统一包装。
-- 装饰器和反射的适用边界。
+- Pydantic、JSON Schema Draft 2020-12、`Protocol`。
+- 结构化子类型让工具无需继承基类，Registry 只依赖 `definition/execute` 合同。
+- `MappingProxyType` 与冻结 Pydantic 模型提供定义快照。
 
 **工程**
 
-- 工具名冲突、禁用和发现。
-- 结构化 ToolResult/ToolError。
-- 输出长度限制、截断和落盘引用。
+- 构造时拒绝重复名称和无效 Schema，执行前校验 ToolCall arguments。
+- Executor 异常、错误返回类型和 ID 不匹配统一为安全 ToolResult。
+- Registry 只读取一次 definition，并限制所有成功 ToolResult 的总字符数。
 
 **验收练习**
 
@@ -255,12 +255,16 @@
 
 **Python**
 
-- `pathlib.resolve`、符号链接和路径规范化。
+- `pathlib.resolve(strict=True)`、`relative_to`、`lstat/stat/fstat`、符号链接和 junction。
+- `stat.S_ISREG` 区分普通文件和设备/FIFO/socket。
 - 纯函数式规则评估。
 
 **工程**
 
-- 防止 `..`、绝对路径、symlink、盘符和 UNC 绕过。
+- 防止 `..`、绝对路径、symlink/junction、盘符、UNC、ADS、Windows 设备名、
+  尾随点/空格和 `.git` 绕过。
+- 文件大小在 metadata 与实际 read 两处限制；严格 UTF-8，拒绝 NUL/二进制。
+- 路径 containment 使用路径组件比较，不使用字符串前缀。
 - allow/ask/deny 规则支持工具、路径、命令和会话范围。
 - 非交互环境遇到 ask 时默认拒绝。
 - 每次权限决定写入 Trace。
@@ -268,6 +272,7 @@
 **验收练习**
 
 - 路径穿越和符号链接负向测试。
+- 解释 Workspace 检查为什么不是 OS sandbox，以及 TOCTOU 的剩余风险。
 - deny 永不进入执行器。
 - ask 只有明确确认后执行。
 - 决策结果能说明命中的规则和原因。
@@ -284,12 +289,15 @@
 
 - 原子替换、编码、换行符。
 - `subprocess`、进程组、超时、取消和输出流。
+- `splitlines(keepends=True)` 保留文件原始换行；`casefold` 位置映射修正 Unicode 列号。
 
 **工程**
 
 - 限制 cwd、环境变量、执行时间和输出大小。
 - 优先 argv；显式区分 Shell 与直接进程模式。
 - 修改前后生成 diff。
+- M2a Read/Search 拒绝越界，限制文件/字节/深度/结果/行长/preview。
+- Search 只支持 literal，不接受模型正则，避免 ReDoS。
 - 二进制、超大和敏感文件默认拒绝。
 
 **验收练习**
@@ -298,6 +306,17 @@
 - 超时命令及其子进程可终止。
 - stdout、stderr、退出码和截断状态完整返回。
 - 同一测试集通过 Windows 与 Linux。
+
+**Java/Flink 迁移类比**
+
+| 现有经验 | M2a 对应概念 |
+|---|---|
+| Java NIO `Path.normalize/toRealPath` | `Path.resolve(strict=True)` + `relative_to` |
+| Bean Validation/Jackson Schema | Pydantic + JSON Schema ToolCall 边界 |
+| Service registry/strategy map | `ToolRegistry` definition snapshot 与 dispatch |
+| Flink keyed state | 按 ToolCall ID 保持调用和结果关联 |
+| Flink state/throughput quota | 文件数、总字节、结果数和深度预算 |
+| Source connector dirty input | 仓库文本、路径和模型参数全部不可信 |
 
 ### L6：Context Budget 与压缩
 

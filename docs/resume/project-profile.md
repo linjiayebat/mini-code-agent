@@ -1,13 +1,13 @@
 # Mini CodeAgent 简历项目包
 
-> 项目状态：M0 工程基础、M1 Provider-neutral Agent Core 与 M1b Anthropic/OpenAI-compatible
-> Adapter 已在本地完成；真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
+> 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider 与 M2a 只读 Workspace/Tool
+> Registry 已在本地完成；写入审批、真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
 >
 > 本文中的功能、性能和指标是目标或验收方案。只有得到代码、测试、CI、Benchmark 或 Release 证据后，才能改写为已完成成果。
 
 ## 1. 30 秒项目介绍
 
-正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成可复现 Python 工程骨架、强类型配置、密钥安全日志、诊断 CLI、带硬限制和取消传播的 Agent Core，以及同步/流式模型适配、防失控 HTTP 边界和原生 ToolCall 往返。
+正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、受限 Read/Search 组成的只读代码理解链路。
 
 规划能力包括可解释 Agent Loop、强类型 Tool Registry、安全 Workspace、allow/ask/deny 权限决策、文件编辑与 Shell 工具、Context Budget 与压缩、Session/Checkpoint/Resume、结构化 Trace，以及 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
 
@@ -24,19 +24,19 @@
 
 最终技术栈以 `pyproject.toml`、ADR 和发布版本为准。
 
-M0/M1/M1b 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
+M0/M1/M1b/M2a 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
 Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
-Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
+JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
 
 | 分类 | 技术 |
 |---|---|
 | 语言与运行时 | Python 3.12/3.13、`asyncio`、`dataclasses`、`enum` |
 | 类型系统 | `typing.Protocol`、Generics、TypedDict、严格 Pyright |
 | 模型接入 | Anthropic Messages、OpenAI-compatible Chat Completions、HTTPX、httpx-sse |
-| 数据模型 | Pydantic v2、JSON Schema |
+| 数据模型 | Pydantic v2、JSON Schema Draft 2020-12 |
 | CLI | Typer、Rich |
 | 工具系统 | 强类型 Tool Registry、统一 Tool Result/Error |
-| 文件能力 | `pathlib`、路径规范化、原子写入、差异编辑、编码与换行处理 |
+| 文件能力 | `pathlib`、`stat/fstat`、Workspace containment、UTF-8、Read/Literal Search |
 | Shell 能力 | `subprocess`、PowerShell/POSIX shell、超时、取消、输出限制 |
 | 状态持久化 | SQLite、版本化 Session/Checkpoint Schema、文件大对象存储 |
 | 可观测性 | 类型化事件、JSONL Trace、correlation ID、usage、脱敏 |
@@ -68,8 +68,9 @@ Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里
 | Provider-neutral Adapter | 单一供应商会带来协议、能力和成本锁定 | `Protocol`、递归不可变 Message/ToolCall、Anthropic/OpenAI 防腐层、capability、usage 与错误归一化 | 同一 Agent Runtime 无分支切换两种 wire protocol，并完成 ToolCall 往返 | 隔离 content block、role、tool arguments 和 finish reason 差异，避免厂商类型侵入 Core | 124 项 Provider/HTTP/跨适配器测试通过；两种 mock wire 闭环通过 |
 | 流式 ToolCall 状态机 | SSE 中参数是不完整 JSON，且并行调用会交错，直接解析或执行会产生错误调用 | 异步生成器、Anthropic block lifecycle、OpenAI per-index state、稀疏元数据缓存、终止后 JSON 校验 | 实时输出 text/tool delta，并在完整 lifecycle 后生成唯一 `ResponseCompleted` | 解决分片归属、ID/name 丢失、参数截断、终止事件缺失和错误完成问题 | 覆盖交错双工具、非法 JSON、索引缺口、元数据变化、缺失终止与流内错误 |
 | 安全 Provider HTTP 边界 | 模型响应和错误体不可信，可能泄密或造成内存/连接失控 | HTTPX async context、SSE parser、超时、16 MiB 硬上限、URL/header 校验、client ownership、静态公开错误 | 对同步/流响应统一限制、清理、分类和脱敏 | 防止原始 body/key/exception 泄漏、无界响应、endpoint 替换和 client 泄漏 | HTTP 状态、超限、非 JSON、错误 Content-Type、网络失败和密钥泄漏负向测试 |
-| 强类型 Tool Registry | 动态参数容易产生缺失、类型漂移和不可解释错误 | Pydantic、JSON Schema、Generics、统一 Result/Error | 注册、发现、校验和调用工具 | 将错误拦截在工具边界，提高可维护性 | Schema snapshot、负向测试、静态类型检查 |
-| 安全 Workspace | Agent 文件权限过大可能影响工作区外文件 | `pathlib`、canonicalization、根目录约束、symlink 检查、原子写入 | 将所有文件操作限制在指定 Workspace | 防止 `../`、绝对路径和符号链接逃逸 | 路径逃逸测试数量和通过率待回填 |
+| 强类型 Tool Registry | 模型参数和动态工具容易产生类型漂移、异常泄漏与错误关联 | Draft 2020-12 Schema、单次 definition snapshot、`Protocol`、统一 Result/Error、结果上限 | 构造时验证 Schema，执行前校验参数，按名称分发并验证返回 ID/类型/大小 | 阻断非法参数进入执行器，防止动态定义漂移、异常泄漏和无界结果 | 重复名、坏 Schema、非法参数、异常、ID/类型/大小负向测试及 Agent 集成通过 |
+| 安全 Workspace | Agent 文件权限过大可能读取仓库外文件或平台特殊路径 | 词法白名单、`resolve(strict=True)`、`relative_to`、symlink/junction 与 `stat/fstat`、文件/遍历预算 | 将模型路径解析、文件类型、大小、编码和目录遍历统一限制在根目录 | 防止 `../`、绝对/盘符/UNC、ADS/设备名、`.git`、链接逃逸和资源耗尽 | Windows 特殊路径、大小/编码/二进制、遍历预算与路径脱敏测试通过；Linux symlink CI 待验证 |
+| 受限 Read/Search | 直接把仓库全文送入模型成本高，模型正则和大文件会造成不可控计算 | 保留换行的行窗口读取、literal search、确定性排序、Unicode casefold 位置映射、结果/preview 上限 | 按相对路径读取代码并返回 path/line/column/preview | 降低无效上下文，避免 ReDoS、错误 Unicode 列号和超大工具输出 | Read/Search 单测与“Read → Search → Final”三轮 Agent 集成通过 |
 | 权限决策系统 | 文件写入、命令和网络操作具有不同风险 | Policy Engine、风险分级、规则匹配、交互审批、默认拒绝 | 按工具、参数、路径决定 allow/ask/deny | 保留人在回路，控制真实副作用 | Policy matrix、审批 Trace、安全回归测试 |
 | 跨平台 Edit/Shell | Windows/Linux 的 shell、路径、编码和信号行为不同 | `subprocess`、Shell Adapter、UTF-8、超时、取消、输出截断 | 可靠编辑文件并执行受控开发命令 | 避免进程失控、日志爆量和平台漂移 | Windows/Linux CI、超时终止测试 |
 | Context Budget | 长任务会超过上下文窗口，直接截断会丢关键事实 | token estimator、消息优先级、滚动摘要、工具输出落盘 | 预算预估、压缩、保留任务目标和未完成项 | 降低上下文超限和无效 token 消耗 | 压缩前后 token、关键信息 golden test |
