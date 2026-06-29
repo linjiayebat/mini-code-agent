@@ -15,6 +15,7 @@ class StopReason(StrEnum):
     PROVIDER_LIMIT = "provider_limit"
     DUPLICATE_TOOL_CALL = "duplicate_tool_call"
     INVALID_RESPONSE = "invalid_response"
+    CONTEXT_LIMIT = "context_limit"
     CANCELLED = "cancelled"
 
 

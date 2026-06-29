@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from mini_code_agent.agent.events import (
     AgentEvent,
+    ContextCompacted,
     EventSink,
     ModelCompleted,
     NullEventSink,
@@ -16,6 +17,9 @@ from mini_code_agent.agent.events import (
     ToolCompleted,
 )
 from mini_code_agent.agent.models import AgentLimits, AgentResult, StopReason
+from mini_code_agent.context.errors import ContextError
+from mini_code_agent.context.manager import ContextManager, ContextPreparer
+from mini_code_agent.context.models import ContextWindow
 from mini_code_agent.domain.content import ToolCall, ToolResult
 from mini_code_agent.domain.messages import Message, MessageRole
 from mini_code_agent.providers.base import (
@@ -38,11 +42,13 @@ class AgentRuntime:
         *,
         limits: AgentLimits | None = None,
         events: EventSink | None = None,
+        context: ContextPreparer | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
         self._limits = limits or AgentLimits()
         self._events = events or NullEventSink()
+        self._context = context or ContextManager()
         definitions = tools.definitions
         names = tuple(definition.name for definition in definitions)
         if len(set(names)) != len(names):
@@ -70,10 +76,62 @@ class AgentRuntime:
         self._publish(RunStarted(run_id=active_run_id, max_turns=self._limits.max_turns))
 
         for turn in range(1, self._limits.max_turns + 1):
+            try:
+                window_candidate = cast(
+                    object,
+                    self._context.prepare(
+                        system_prompt=system_prompt,
+                        messages=tuple(messages),
+                        tools=self._definitions,
+                    ),
+                )
+            except ContextError:
+                return self._stop(
+                    active_run_id,
+                    messages,
+                    StopReason.CONTEXT_LIMIT,
+                    turn - 1,
+                    tool_call_count,
+                    usage,
+                    "Model context limit exceeded.",
+                )
+            except Exception:
+                return self._stop(
+                    active_run_id,
+                    messages,
+                    StopReason.CONTEXT_LIMIT,
+                    turn - 1,
+                    tool_call_count,
+                    usage,
+                    "Model context limit exceeded.",
+                )
+            if not isinstance(window_candidate, ContextWindow):
+                return self._stop(
+                    active_run_id,
+                    messages,
+                    StopReason.CONTEXT_LIMIT,
+                    turn - 1,
+                    tool_call_count,
+                    usage,
+                    "Model context limit exceeded.",
+                )
+            window = window_candidate
+            if window.compacted:
+                self._publish(
+                    ContextCompacted(
+                        run_id=active_run_id,
+                        turn=turn,
+                        estimated_before=window.estimated_before,
+                        estimated_after=window.estimated_after,
+                        omitted_messages=window.omitted_messages,
+                        omitted_tool_exchanges=window.omitted_tool_exchanges,
+                        transcript_sha256=window.transcript_sha256,
+                    )
+                )
             request = ModelRequest(
                 request_id=f"{active_run_id}:{turn}",
-                system_prompt=system_prompt,
-                messages=tuple(messages),
+                system_prompt=window.system_prompt,
+                messages=window.messages,
                 tools=self._definitions,
             )
             try:

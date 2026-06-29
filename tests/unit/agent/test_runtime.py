@@ -3,9 +3,12 @@ from typing import cast
 
 import pytest
 
-from mini_code_agent.agent.events import RecordingEventSink, RunStopped
+from mini_code_agent.agent.events import ContextCompacted, RecordingEventSink, RunStopped
 from mini_code_agent.agent.models import AgentLimits, StopReason
 from mini_code_agent.agent.runtime import AgentRuntime
+from mini_code_agent.context.errors import ContextError, ContextErrorCode
+from mini_code_agent.context.manager import ContextPreparer
+from mini_code_agent.context.models import ContextWindow
 from mini_code_agent.domain.content import ToolCall, ToolResult
 from mini_code_agent.domain.messages import Message, MessageRole
 from mini_code_agent.providers.base import (
@@ -18,6 +21,64 @@ from mini_code_agent.providers.base import (
 from mini_code_agent.providers.fake import ScriptedProvider
 from mini_code_agent.tools.base import SideEffect, ToolDefinition
 from mini_code_agent.tools.runtime_info import RuntimeInfoTool
+
+
+class RecordingContext:
+    def __init__(self, *, compact_on_message_count: int | None = None) -> None:
+        self.calls: list[tuple[str, tuple[Message, ...], tuple[ToolDefinition, ...]]] = []
+        self._compact_on_message_count = compact_on_message_count
+
+    def prepare(
+        self,
+        *,
+        system_prompt: str,
+        messages: tuple[Message, ...],
+        tools: tuple[ToolDefinition, ...],
+    ) -> ContextWindow:
+        self.calls.append((system_prompt, messages, tools))
+        compact = (
+            self._compact_on_message_count is not None
+            and len(messages) >= self._compact_on_message_count
+        )
+        selected = (messages[0], *messages[-2:]) if compact else messages
+        return ContextWindow(
+            system_prompt=(
+                f"{system_prompt}\n\n[context-omitted test]" if compact else system_prompt
+            ),
+            messages=selected,
+            estimated_before=len(messages) * 100,
+            estimated_after=len(selected) * 100,
+            omitted_messages=len(messages) - len(selected),
+            omitted_tool_exchanges=1 if compact else 0,
+            transcript_sha256="a" * 64,
+        )
+
+
+class FailingContext:
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    def prepare(
+        self,
+        *,
+        system_prompt: str,
+        messages: tuple[Message, ...],
+        tools: tuple[ToolDefinition, ...],
+    ) -> ContextWindow:
+        del system_prompt, messages, tools
+        raise self._error
+
+
+class InvalidContext:
+    def prepare(
+        self,
+        *,
+        system_prompt: str,
+        messages: tuple[Message, ...],
+        tools: tuple[ToolDefinition, ...],
+    ) -> ContextWindow:
+        del system_prompt, messages, tools
+        return cast(ContextWindow, None)
 
 
 def final_response(text: str) -> ModelResponse:
@@ -590,3 +651,112 @@ async def test_run_id_is_validated_before_start_event() -> None:
         await runtime.run(user_prompt="inspect", run_id="x" * 129)
 
     assert sink.events == []
+
+
+@pytest.mark.asyncio
+async def test_context_is_prepared_before_every_provider_turn() -> None:
+    context = RecordingContext()
+    provider = ScriptedProvider([tool_response("call-1"), final_response("done")])
+    runtime = AgentRuntime(provider, RuntimeInfoTool(), context=context)
+
+    result = await runtime.run(
+        user_prompt="inspect",
+        system_prompt="system",
+        run_id="context-run",
+    )
+
+    assert result.stop_reason is StopReason.COMPLETED
+    assert len(context.calls) == 2
+    assert context.calls[0][0] == "system"
+    assert len(context.calls[0][1]) == 1
+    assert len(context.calls[1][1]) == 3
+    assert context.calls[0][2][0].name == "runtime_info"
+
+
+@pytest.mark.asyncio
+async def test_runtime_sends_compacted_window_but_returns_full_transcript() -> None:
+    context = RecordingContext(compact_on_message_count=5)
+    events = RecordingEventSink()
+    provider = ScriptedProvider(
+        [
+            tool_response("call-1"),
+            tool_response("call-2"),
+            final_response("done"),
+        ]
+    )
+    runtime = AgentRuntime(
+        provider,
+        RuntimeInfoTool(),
+        context=context,
+        events=events,
+    )
+
+    result = await runtime.run(user_prompt="inspect", run_id="compaction-run")
+
+    assert result.stop_reason is StopReason.COMPLETED
+    assert len(provider.requests[2].messages) == 3
+    assert len(result.messages) == 6
+    compacted = [event for event in events.events if isinstance(event, ContextCompacted)]
+    assert len(compacted) == 1
+    assert compacted[0].turn == 3
+    assert compacted[0].omitted_messages == 2
+    assert compacted[0].omitted_tool_exchanges == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "context",
+    [
+        FailingContext(
+            ContextError(
+                ContextErrorCode.FIXED_CONTENT_TOO_LARGE,
+                "secret-context-error",
+            )
+        ),
+        FailingContext(RuntimeError("secret-unexpected-error")),
+        InvalidContext(),
+    ],
+)
+async def test_context_failure_stops_before_provider_with_static_error(
+    context: object,
+) -> None:
+    provider = ScriptedProvider([final_response("must-not-run")])
+    runtime = AgentRuntime(
+        provider,
+        RuntimeInfoTool(),
+        context=cast(ContextPreparer, context),
+    )
+
+    result = await runtime.run(user_prompt="secret-user-goal", run_id="context-failure")
+
+    assert result.stop_reason is StopReason.CONTEXT_LIMIT
+    assert result.turns == 0
+    assert result.error == "Model context limit exceeded."
+    assert provider.requests == []
+    assert len(result.messages) == 1
+    assert "secret-context-error" not in (result.error or "")
+    assert "secret-unexpected-error" not in (result.error or "")
+    assert "secret-user-goal" not in (result.error or "")
+
+
+@pytest.mark.asyncio
+async def test_context_event_sink_failure_does_not_change_compaction() -> None:
+    context = RecordingContext(compact_on_message_count=5)
+    provider = ScriptedProvider(
+        [
+            tool_response("call-1"),
+            tool_response("call-2"),
+            final_response("done"),
+        ]
+    )
+    runtime = AgentRuntime(
+        provider,
+        RuntimeInfoTool(),
+        context=context,
+        events=FailingEventSink(ContextCompacted),
+    )
+
+    result = await runtime.run(user_prompt="inspect")
+
+    assert result.stop_reason is StopReason.COMPLETED
+    assert len(provider.requests[2].messages) == 3
