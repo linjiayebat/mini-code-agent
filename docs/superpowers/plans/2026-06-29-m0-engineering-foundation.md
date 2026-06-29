@@ -1504,8 +1504,10 @@ corrections are part of the M0 gate:
 - Pydantic validation hides input values, and invalid environment settings are normalized to
   `ConfigurationError` so the CLI returns exit code 2 without a traceback.
 - Structured logging masks sensitive keys and removes configured secret values from messages,
-  event data, and exception text.
-- Diagnostics reject an existing regular file as a data directory.
+  mapping keys, non-JSON objects, event data, and exception text; overlapping secrets are
+  processed longest-first.
+- Diagnostics reject an existing regular file, a file-blocked ancestor, or a broken symlink as
+  a data directory, and human-readable output reports path usability.
 - Hatchling is pinned, included in `uv.lock`, and constrained with transitive SHA-256 hashes for
   isolated builds.
 - The package includes `py.typed`, and smoke tests invoke the installed console script for both

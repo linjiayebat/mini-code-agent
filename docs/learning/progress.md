@@ -2,7 +2,7 @@
 
 | Unit | Status | Evidence |
 |---|---|---|
-| L0 Python engineering foundation | Complete locally | Ruff、Pyright、21 tests、build、CLI doctor |
+| L0 Python engineering foundation | Complete locally | Ruff、Pyright、25 passed、build、CLI doctor |
 | L1 Agent Loop | Not started | |
 | L2 Provider and Tool Calling | Not started | |
 | L3 Tool Registry | Not started | |
@@ -31,9 +31,9 @@
 - Validation errors are output channels too. Pydantic uses `hide_input_in_errors=True`, and
   environment parsing is normalized into the same application error type.
 - Masking sensitive field names is insufficient. Configured secret values must also be removed
-  from log messages, structured data, and exception text.
+  from log messages, mapping keys, non-JSON objects, structured data, and exception text.
 - A writable path is not automatically a usable data directory. Health checks must distinguish
-  a directory from a regular file.
+  a directory from a regular file and stop at the nearest existing filesystem entry.
 - `uv.lock` controls project dependencies, while isolated build dependencies need separate,
   hashed build constraints.
 - A packaging smoke test must invoke the installed console script; calling the in-process Typer
@@ -44,7 +44,8 @@
 - Verified on 2026-06-29 with uv-managed Python 3.13.14 on Windows 11.
 - `uv lock --check` and `uv sync --locked --all-groups`: passed.
 - Ruff format/check and Pyright strict mode: passed.
-- Pytest: 21 passed; branch-aware package coverage: 86.49%.
+- Pytest: 25 passed, 1 skipped because Windows denied symlink creation; branch-aware package
+  coverage: 92.96%.
 - Hashed Hatchling build produced wheel and source distribution.
 - Both artifacts passed isolated, installed console-script smoke tests.
 - `mini-code-agent doctor --json` reported healthy and did not expose an injected API key.
