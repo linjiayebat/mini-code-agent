@@ -321,10 +321,20 @@
 5. Explain why observed Provider usage cannot predict the next request and why the estimator is
    injected.
 
-## M3a Current Verification
+## M3a Local Verification
 
 - Context manager unit suite: 18 passed.
 - Context, Runtime, and context integration suite: 77 passed.
-- Ruff and strict Pyright passed after binding Pyright to the worktree Python 3.13 environment.
-- Full dual-Python, coverage, security, build, and artifact smoke evidence is recorded only after
-  the `v0.7.0-alpha.0` release gate completes.
+- Full Python 3.12.13 and 3.13.14 development suite: 440 passed per interpreter; 3 Windows
+  symlink privilege skips per interpreter.
+- Python 3.13 branch-aware package coverage: 90.12%, above the configured 85% gate.
+- Ruff format/check and strict Pyright: passed.
+- Bandit: no unsuppressed findings. pip-audit found no known dependency vulnerabilities; the
+  unpublished local package itself was skipped because it is not on PyPI.
+- Hashed build produced `mini_code_agent-0.7.0a0-py3-none-any.whl` and
+  `mini_code_agent-0.7.0a0.tar.gz`.
+- Wheel and sdist each passed isolated installed console-script smoke tests on Python 3.12 and
+  3.13.
+- Package version: `0.7.0a0`; local milestone tag target: `v0.7.0-alpha.0`.
+- Linux behavior and remote GitHub Actions still require remote evidence; no remote result is
+  claimed.

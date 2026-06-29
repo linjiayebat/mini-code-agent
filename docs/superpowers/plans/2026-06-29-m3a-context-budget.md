@@ -193,14 +193,14 @@ git commit -m "feat: enforce agent context budgets"
 
 ## Task 6: Documentation and `v0.7.0-alpha.0`
 
-- [ ] Add `docs/architecture/context-budget.md` and ADR 0006.
-- [ ] Document estimator limitations, atomic selection, marker semantics, full-transcript
+- [x] Add `docs/architecture/context-budget.md` and ADR 0006.
+- [x] Document estimator limitations, atomic selection, marker semantics, full-transcript
   ownership, and why M3a is not durable memory.
-- [ ] Update learning notes with JVM admission control, Flink record/checkpoint analogies, and
+- [x] Update learning notes with JVM admission control, Flink record/checkpoint analogies, and
   exercises tracing exact boundary cases.
-- [ ] Update resume rows with why, implementation, function, solved problem, measured evidence,
+- [x] Update resume rows with why, implementation, function, solved problem, measured evidence,
   and no unsupported token-savings claim.
-- [ ] Update README/changelog and bump package/tests/lock to `0.7.0a0`.
-- [ ] Run Python 3.12/3.13, coverage, Ruff, Pyright, Bandit, pip-audit, hashed build, and four
+- [x] Update README/changelog and bump package/tests/lock to `0.7.0a0`.
+- [x] Run Python 3.12/3.13, coverage, Ruff, Pyright, Bandit, pip-audit, hashed build, and four
   isolated wheel/sdist smoke tests.
 - [ ] Fast-forward merge, verify merged result, tag `v0.7.0-alpha.0`, and clean the owned worktree.

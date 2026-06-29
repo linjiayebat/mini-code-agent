@@ -155,14 +155,10 @@ class ContextManager:
         tools: tuple[ToolDefinition, ...],
     ) -> ContextWindow:
         selected_units = tuple(
-            unit
-            for index, unit in enumerate(units)
-            if unit.pinned or index >= retained_start
+            unit for index, unit in enumerate(units) if unit.pinned or index >= retained_start
         )
         omitted = tuple(
-            unit
-            for index, unit in enumerate(units)
-            if not unit.pinned and index < retained_start
+            unit for index, unit in enumerate(units) if not unit.pinned and index < retained_start
         )
         return self._assemble_candidate(
             system_prompt=system_prompt,
