@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -202,4 +203,34 @@ async def test_runner_cancellation_cleans_process_before_reraising(tmp_path: Pat
         await task
     await asyncio.sleep(0.2)
 
+    assert not marker.exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_reader_failure_terminates_process_and_hides_exception(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "reader-failure-late.txt"
+    runner = CommandRunner(limits=CommandLimits(cleanup_timeout_seconds=1))
+
+    async def fail_reader(*args: object) -> None:
+        del args
+        raise RuntimeError("secret-reader-failure")
+
+    monkeypatch.setattr(CommandRunner, "_read_stream", staticmethod(fail_reader))
+    started = time.monotonic()
+
+    with pytest.raises(CommandError) as captured:
+        await runner.run(
+            request(
+                tmp_path,
+                "import pathlib,time; time.sleep(5); "
+                "pathlib.Path('reader-failure-late.txt').write_text('late')",
+            )
+        )
+
+    assert captured.value.code is CommandErrorCode.COMMAND_IO_FAILED
+    assert "secret-reader-failure" not in captured.value.public_message
+    assert time.monotonic() - started < 3
     assert not marker.exists()

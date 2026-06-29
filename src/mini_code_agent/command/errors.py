@@ -7,6 +7,7 @@ class CommandErrorCode(StrEnum):
     INVALID_REQUEST = "invalid_request"
     COMMAND_NOT_FOUND = "command_not_found"
     COMMAND_START_FAILED = "command_start_failed"
+    COMMAND_IO_FAILED = "command_io_failed"
     COMMAND_CLEANUP_FAILED = "command_cleanup_failed"
 
 

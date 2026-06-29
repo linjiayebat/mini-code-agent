@@ -42,6 +42,10 @@ class PolicyEngine:
             return False
         if rule.trust_source is not None and request.trust_source is not rule.trust_source:
             return False
+        if rule.executable_glob is not None and (
+            not request.command or not fnmatchcase(request.command[0], rule.executable_glob)
+        ):
+            return False
         return rule.resource_glob is None or (
             bool(request.resources)
             and all(fnmatchcase(resource, rule.resource_glob) for resource in request.resources)

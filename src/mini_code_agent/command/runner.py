@@ -74,27 +74,31 @@ class CommandRunner:
         output_wait = asyncio.create_task(budget.exceeded.wait())
         timed_out = False
         try:
-            done, _ = await asyncio.wait(
-                (process_wait, output_wait),
-                timeout=request.timeout_seconds,
-                return_when=asyncio.FIRST_COMPLETED,
+            timed_out = await self._wait_for_trigger(
+                process,
+                process_wait,
+                output_wait,
+                readers,
+                request.timeout_seconds,
             )
-            if not done:
-                timed_out = True
-                await self._terminate_tree(process)
-            elif output_wait in done and budget.exceeded.is_set():
-                await self._terminate_tree(process)
-            else:
-                await process_wait
             await asyncio.gather(*readers)
             if budget.exceeded.is_set() and process.returncode is None:
                 await self._terminate_tree(process)
         except asyncio.CancelledError:
             await self._cleanup_after_cancellation(process)
-            for reader in readers:
-                reader.cancel()
-            await asyncio.gather(*readers, return_exceptions=True)
+            await self._cancel_readers(readers)
             raise
+        except CommandError:
+            await self._best_effort_cleanup(process)
+            await self._cancel_readers(readers)
+            raise
+        except Exception:
+            await self._best_effort_cleanup(process)
+            await self._cancel_readers(readers)
+            raise CommandError(
+                CommandErrorCode.COMMAND_IO_FAILED,
+                "Command output could not be collected.",
+            ) from None
         finally:
             output_wait.cancel()
             await asyncio.gather(output_wait, return_exceptions=True)
@@ -115,6 +119,37 @@ class CommandRunner:
             stderr_truncated=stderr.truncated,
             duration_ms=duration_ms,
         )
+
+    async def _wait_for_trigger(
+        self,
+        process: asyncio.subprocess.Process,
+        process_wait: asyncio.Task[int],
+        output_wait: asyncio.Task[bool],
+        readers: tuple[asyncio.Task[None], asyncio.Task[None]],
+        timeout_seconds: int,
+    ) -> bool:
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        active_readers = set(readers)
+        while True:
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+            done, _ = await asyncio.wait(
+                (process_wait, output_wait, *active_readers),
+                timeout=remaining,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if not done:
+                await self._terminate_tree(process)
+                return True
+            completed_readers = active_readers.intersection(done)
+            for reader in completed_readers:
+                reader.result()
+            active_readers.difference_update(completed_readers)
+            if output_wait in done and output_wait.result():
+                await self._terminate_tree(process)
+                return False
+            if process_wait in done:
+                process_wait.result()
+                return False
 
     async def _start(self, request: CommandRequest) -> asyncio.subprocess.Process:
         creation_flags = 0
@@ -174,6 +209,23 @@ class CommandRunner:
         except (asyncio.CancelledError, CommandError):
             if not cleanup.done():
                 await asyncio.gather(cleanup, return_exceptions=True)
+
+    async def _best_effort_cleanup(
+        self,
+        process: asyncio.subprocess.Process,
+    ) -> None:
+        if process.returncode is not None:
+            return
+        await asyncio.gather(self._terminate_tree(process), return_exceptions=True)
+
+    @staticmethod
+    async def _cancel_readers(
+        readers: tuple[asyncio.Task[None], asyncio.Task[None]],
+    ) -> None:
+        for reader in readers:
+            if not reader.done():
+                reader.cancel()
+        await asyncio.gather(*readers, return_exceptions=True)
 
     async def _terminate_tree(self, process: asyncio.subprocess.Process) -> None:
         if process.returncode is not None:

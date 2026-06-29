@@ -43,6 +43,7 @@ class PolicyRequest(BaseModel):
     side_effect: SideEffect
     risk: RiskLevel
     resources: tuple[ResourcePath, ...] = Field(default=(), max_length=32)
+    command: tuple[CommandArgument, ...] = Field(default=(), max_length=64)
     session_mode: SessionMode
     trust_source: TrustSource
 
@@ -57,6 +58,7 @@ class PolicyRule(BaseModel):
     side_effect: SideEffect | None = None
     risk: RiskLevel | None = None
     resource_glob: str | None = Field(default=None, min_length=1, max_length=1024)
+    executable_glob: str | None = Field(default=None, min_length=1, max_length=4096)
     session_mode: SessionMode | None = None
     trust_source: TrustSource | None = None
 

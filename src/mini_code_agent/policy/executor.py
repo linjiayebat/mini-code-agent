@@ -74,6 +74,7 @@ class GovernedToolExecutor:
                 side_effect=definition.side_effect,
                 risk=preview.risk,
                 resources=preview.resources,
+                command=preview.command or (),
                 session_mode=self._session_mode,
                 trust_source=self._trust_source,
             )
