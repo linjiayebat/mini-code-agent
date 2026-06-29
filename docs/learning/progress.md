@@ -7,7 +7,7 @@
 | L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 124 focused tests passed |
 | L3 Tool Registry | Complete locally | Draft 2020-12 validation, dispatch and bounded result contract |
 | L4 Workspace and Policy | Complete locally | WorkspaceBoundary + deterministic Policy + approval governance |
-| L5 File/Edit/Shell/Git tools | In progress | Read/Search/Write/Edit complete; Shell/Git scheduled for M2c |
+| L5 File/Edit/Command/Git tools | In progress | Read/Search/Write/Edit/argv Command complete; Git deferred |
 | L6 Context Budget | Not started | |
 | L7 Session/Checkpoint/Trace | Not started | |
 | L8 Git/test/repair | Not started | |
@@ -242,3 +242,39 @@
 - Package version: `0.5.0a0`; local milestone tag target: `v0.5.0-alpha.0`.
 - Linux behavior and remote GitHub Actions still require remote evidence; no remote result is
   claimed.
+
+## M2c Governed Command Notes
+
+- An argv array is data passed directly to an executable. A shell string is a program in a
+  second language with interpolation, expansion, redirects, and platform-specific quoting.
+- `asyncio.create_subprocess_exec` corresponds to Java `ProcessBuilder(List<String>)`; avoiding
+  `shell=True` removes shell parsing but does not make the executable safe.
+- Coroutine cancellation does not automatically own an OS process. The runner must terminate the
+  process tree, close/drain pipes, await the process, and only then propagate cancellation.
+- Stdout and stderr share a retained-byte budget. After overflow, readers continue discarding
+  bytes until termination so pipe backpressure cannot deadlock cleanup.
+- A minimal environment prevents accidental API-key inheritance. It cannot stop a process from
+  opening credential files under the same OS identity.
+- Execute defaults to deny. An explicit rule can narrow tool, cwd, risk, session, trust source,
+  and submitted executable; interactive `ask` still requires approval.
+- POSIX process groups and Windows `taskkill /T /F` are lifecycle boundaries. They are not
+  containers, restricted identities, or sandboxes.
+- Non-zero exit is command data, while spawn/I/O/cleanup failures are infrastructure errors. This
+  is analogous to distinguishing Flink task result, timeout, and TaskManager failure.
+
+## M2c Exercises
+
+1. Explain why `["python", "-m", "pytest"]` has different parsing semantics from a shell string.
+2. Trace timeout from `asyncio.wait` through process-tree termination and pipe draining.
+3. Explain why stopping capture at 1 MiB without draining can deadlock `process.wait`.
+4. Compare coroutine cancellation, Java Future cancellation, and OS process termination.
+5. List what minimal environment and cwd validation prevent, then list what requires a sandbox.
+
+## M2c Local Verification
+
+- Command/Policy/Tool focused suite: 66 passed before final hardening.
+- Full Python 3.13.14 development suite: 394 passed; 3 Windows symlink privilege skips.
+- Branch-aware package coverage: 89.87%, above the configured 85% gate.
+- Ruff format/check and strict Pyright: passed.
+- Python 3.12, security scan, artifacts, and installed smoke tests remain release-gate evidence
+  and are not claimed until completed.

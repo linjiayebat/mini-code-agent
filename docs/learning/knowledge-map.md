@@ -303,6 +303,10 @@
 - 新文件使用 create-only；已有文件在审批后再次校验哈希再原子替换。
 - Edit 只允许唯一 literal 匹配，零匹配、多匹配和 no-op 都拒绝。
 - 审批预览限制为相对路径、风险、理由和 bounded unified diff。
+- M2c 只支持 argv，不支持 shell 字符串、`shell=True`、重定向或管道语法。
+- Command 默认 deny；显式规则可按 executable glob 收窄，ask 仍需交互审批。
+- 子进程使用最小环境、Workspace cwd、合并输出预算和进程树清理。
+- 输出超限后继续丢弃式 drain，防止 pipe backpressure 阻塞终止。
 
 **验收练习**
 
@@ -313,7 +317,7 @@
 
 **Java/Flink 迁移类比**
 
-| 现有经验 | M2a/M2b 对应概念 |
+| 现有经验 | M2a/M2b/M2c 对应概念 |
 |---|---|
 | Java NIO `Path.normalize/toRealPath` | `Path.resolve(strict=True)` + `relative_to` |
 | Bean Validation/Jackson Schema | Pydantic + JSON Schema ToolCall 边界 |
@@ -325,6 +329,10 @@
 | JPA `@Version` | SHA-256 乐观并发前置条件 |
 | Flink checkpoint state version | Read hash 标识 Edit 所依据的文件快照 |
 | 两阶段发布 | 临时文件写完并校验后通过 `os.replace` 一次发布 |
+| Java `ProcessBuilder(List)` | argv-only `asyncio.create_subprocess_exec` |
+| `Future.cancel()` | 取消信号 + 显式进程树清理 |
+| Flink task timeout | 命令 timeout 分类和有界终止 |
+| 有界队列/背压 | 输出保留预算 + overflow 后 discard drain |
 
 **M2b 代码阅读顺序**
 
@@ -334,6 +342,15 @@
 4. `workspace/boundary.py`：跟踪哈希前置条件、临时文件和原子发布。
 5. `tools/write_file.py` 与 `tools/edit_file.py`：理解工具语义如何复用边界。
 6. `tests/integration/test_governed_write_agent.py`：验证 Read -> Hash -> Edit -> Approval。
+
+**M2c 代码阅读顺序**
+
+1. `command/models.py`：理解请求、结果和资源预算。
+2. `command/environment.py`：检查平台环境白名单和 Secret 排除。
+3. `command/runner.py`：跟踪 process/output/timeout/cancellation 竞态。
+4. `tools/run_command.py`：理解 Schema、cwd 与 critical preview。
+5. `policy/engine.py`：理解 execute 默认 deny 和 executable glob。
+6. `tests/unit/command/test_runner.py`：跟踪父子进程、overflow 与异常清理证据。
 
 ### L6：Context Budget 与压缩
 

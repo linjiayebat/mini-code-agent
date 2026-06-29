@@ -2,10 +2,10 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M2b provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M2c provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
-> Read/Search, and policy-governed conflict-aware Write/Edit tools. Shell execution, persistence,
-> and live-provider CI are not implemented yet.
+> Read/Search, conflict-aware Write/Edit, and policy-governed argv command execution. Shell-string
+> execution, persistence, and live-provider CI are not implemented.
 
 ## Requirements
 
@@ -95,6 +95,15 @@ require the SHA-256 returned by `read_file`; new files use create-only semantics
 
 See `docs/architecture/governed-writes.md` for the complete composition and concurrency limits.
 
+## Governed Commands
+
+`run_command` uses explicit argv and never `shell=True`. Execute is denied by default and requires
+an explicit policy rule. The runner validates cwd, strips arbitrary environment variables, bounds
+time/output, and cleans process trees on timeout, overflow, or cancellation.
+
+This is local process lifecycle control, not an OS sandbox. See
+`docs/architecture/governed-command-execution.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -105,10 +114,12 @@ See `docs/architecture/governed-writes.md` for the complete composition and conc
 - Provider adapters: `docs/architecture/provider-adapters.md`
 - Read-only tools: `docs/architecture/readonly-tools.md`
 - Governed writes: `docs/architecture/governed-writes.md`
+- Governed commands: `docs/architecture/governed-command-execution.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
 - Governed file writes ADR: `docs/adr/0004-governed-file-writes.md`
+- Argv command runner ADR: `docs/adr/0005-argv-command-runner.md`
 
 ## License
 

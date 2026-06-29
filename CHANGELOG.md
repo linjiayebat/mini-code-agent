@@ -4,6 +4,20 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+### Added
+
+- Critical-risk `run_command` tool with exact argv/cwd/reason approval previews.
+- Argv-only async command runner with minimal environment and structured exit results.
+- Combined stdout/stderr byte budget, timeout, cancellation, and process-tree cleanup.
+- Policy `executable_glob` for narrowing explicit execute rules.
+
+### Security
+
+- Execute remains denied by default and non-interactive `ask` fails closed.
+- No command path uses `shell=True`, shell strings, model environment overrides, or stdin.
+- Command output, runtime, argv, and cleanup waits have hard limits.
+- Pipe-reader failures terminate the process and return static errors without raw exceptions.
+
 ## [0.5.0-alpha.0] - 2026-06-29
 
 ### Added
