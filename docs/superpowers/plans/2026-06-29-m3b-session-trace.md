@@ -46,6 +46,8 @@ best-effort observability. Checkpoint/message persistence and Resume remain outs
 
 ## Task 1: Durable Event Contracts
 
+**Status:** Complete
+
 **Files:**
 
 - Modify: `src/mini_code_agent/agent/events.py`
@@ -148,6 +150,8 @@ git commit -m "feat: define durable lifecycle events"
 
 ## Task 2: Persistence Models, Errors, and Schema
 
+**Status:** Complete
+
 **Files:**
 
 - Create: `src/mini_code_agent/persistence/errors.py`
@@ -232,6 +236,8 @@ git commit -m "feat: create versioned session schema"
 
 ## Task 3: Bounded Session and Run Queries
 
+**Status:** Complete
+
 **Files:**
 
 - Create: `src/mini_code_agent/persistence/store.py`
@@ -281,6 +287,8 @@ git commit -m "feat: persist bounded session metadata"
 ```
 
 ## Task 4: Transactional Event Append and Projections
+
+**Status:** Complete
 
 **Files:**
 
@@ -365,6 +373,8 @@ git commit -m "feat: append transactional session traces"
 
 ## Task 5: Trace Query and Integrity Verification
 
+**Status:** Complete
+
 **Files:**
 
 - Modify: `src/mini_code_agent/persistence/store.py`
@@ -411,6 +421,8 @@ git commit -m "feat: verify append-only trace integrity"
 ```
 
 ## Task 6: Required Journal in Agent Runtime
+
+**Status:** Complete
 
 **Files:**
 
@@ -483,6 +495,8 @@ git commit -m "feat: require configured event journal"
 
 ## Task 7: Persistent Agent Integration
 
+**Status:** Complete
+
 **Files:**
 
 - Create: `tests/integration/test_persistent_trace_agent.py`
@@ -512,6 +526,8 @@ git commit -m "test: verify persistent agent trace"
 ```
 
 ## Task 8: Documentation and `v0.8.0-alpha.0`
+
+**Status:** In progress
 
 **Files:**
 

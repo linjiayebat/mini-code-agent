@@ -45,7 +45,7 @@ adapters remain unaware of selection.
 - UTF-8 bytes are a conservative heuristic, not exact vendor tokens.
 - Omitting read-only history can lose facts; the marker cannot reconstruct them.
 - Pinning side effects may stop a long run earlier when required history fills the budget.
-- The in-memory full transcript still grows until M3b externalizes durable state.
+- The in-memory full transcript still grows until M3c persists checkpoint/message state.
 
 ## Rejected Alternatives
 

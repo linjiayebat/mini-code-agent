@@ -39,6 +39,16 @@
   the model does not lose in-memory evidence of an action and repeat it under a new call ID.
 - Compaction markers/events contain bounded counts and a transcript fingerprint, not raw omitted
   content.
+- M3b stores only bounded typed lifecycle metadata in SQLite schema version 1; prompts, ToolCall
+  arguments, ToolResults, patches, and command output are excluded.
+- Required Journal writes precede Provider/Tool work. `ToolStarted` is durable before execution,
+  and persistence failure stops all later work with static errors.
+- SQLite append and Session/Run projection updates share one `BEGIN IMMEDIATE` transaction with
+  WAL, foreign keys, full synchronous writes, bounded busy timeout, and parameterized SQL.
+- Event IDs provide exact-payload idempotency. Per-Session sequence and SHA-256 chains detect
+  inconsistent rows and projections.
+- Explicitly configured Secret values are scrubbed from bounded free-form stop errors before
+  hashing and storage.
 
 ## Non-claims
 
@@ -56,4 +66,12 @@
   prevention or exactly-once side effects; those require M3b/M3c persistence and recovery.
 - A provider-neutral UTF-8 estimator is not an exact vendor tokenizer and cannot guarantee
   provider acceptance.
+- SQLite WAL/`synchronous=FULL` improve local durability but do not provide replication,
+  distributed consistency, or protection from storage failure.
+- The Trace hash chain is not signed or authenticated; a writer with database access can rewrite
+  payloads and hashes.
+- M3b does not persist messages or Checkpoints. An active Run or started-only Tool after a crash
+  is indeterminate and must not be automatically replayed before M3c compatibility/recovery
+  checks.
+- Configured-value scrubbing cannot detect unknown secrets, and SQLite is not encrypted at rest.
 - MCP connection does not establish trust.

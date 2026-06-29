@@ -2,10 +2,11 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M3a provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M3b provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
-> context admission. Shell-string execution, persistence, and live-provider CI are not implemented.
+> context admission plus versioned SQLite Session/Trace persistence. Shell-string execution,
+> Checkpoint/Resume, and live-provider CI are not implemented.
 
 ## Requirements
 
@@ -115,6 +116,34 @@ The default UTF-8 estimator is deterministic and provider-neutral, not an exact 
 M3a is not durable memory or crash-safe replay prevention. See
 `docs/architecture/context-budget.md`.
 
+## Session and Trace
+
+```python
+from pathlib import Path
+
+from mini_code_agent.agent.runtime import AgentRuntime
+from mini_code_agent.persistence import SqliteSessionTraceStore
+
+with SqliteSessionTraceStore(Path("agent-state.db")) as store:
+    session = store.create_session()
+    runtime = AgentRuntime(
+        provider,
+        tools,
+        journal=store.journal(session.session_id),
+    )
+    result = await runtime.run(user_prompt="Inspect the project.")
+    verification = store.verify_trace(session.session_id)
+```
+
+SQLite schema v1 stores bounded lifecycle events and Session/Run projections in one transaction.
+The required journal records `ModelStarted` before Provider I/O and `ToolStarted` before Tool
+execution; a persistence failure stops later work. Event IDs are idempotency keys, and a
+per-Session SHA-256 chain detects inconsistent rows and projections.
+
+Prompts, Tool arguments/results, patches, and command output are not stored. The hash chain is not
+signed or tamper-proof, and active/started-only state cannot be resumed until M3c. See
+`docs/architecture/session-trace.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -127,12 +156,14 @@ M3a is not durable memory or crash-safe replay prevention. See
 - Governed writes: `docs/architecture/governed-writes.md`
 - Governed commands: `docs/architecture/governed-command-execution.md`
 - Context budget: `docs/architecture/context-budget.md`
+- Session and Trace: `docs/architecture/session-trace.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
 - Governed file writes ADR: `docs/adr/0004-governed-file-writes.md`
 - Argv command runner ADR: `docs/adr/0005-argv-command-runner.md`
 - Context budget ADR: `docs/adr/0006-deterministic-context-budget.md`
+- SQLite Session/Trace ADR: `docs/adr/0007-sqlite-session-trace.md`
 
 ## License
 

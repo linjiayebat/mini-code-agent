@@ -409,28 +409,63 @@
 
 **理论**
 
-- Session 是逻辑会话，Checkpoint 是可恢复状态。
-- Trace 是追加式事实记录，不等于普通日志。
-- Resume 必须验证 Workspace、配置和 Schema 兼容性。
+- Session 是逻辑任务容器，Run 是一次执行尝试，Trace 是追加式生命周期事实。
+- Session/Run 表是事件日志的物化视图，不等于 Checkpoint。
+- `event_id` 解决同一事件重试幂等，`(session_id, sequence)` 解决会话内顺序。
+- `ToolStarted` 没有对应 `ToolCompleted` 表示结果不确定，不表示执行失败或可安全重试。
+- Hash chain 能发现不一致，不等于签名审计或防篡改存储。
+- Checkpoint 保存可恢复状态；Resume 还必须验证 Workspace、配置和 Schema 兼容性。
 
 **Python**
 
-- SQLite 事务、迁移、索引、WAL。
-- JSON 字段版本化和事务边界。
+- stdlib `sqlite3`、context manager、短连接和参数化 SQL。
+- Pydantic 冻结 DTO、`TypeAdapter` 判别事件联合、`Protocol` Journal。
+- canonical JSON、SHA-256 前驱链、UUID 幂等键。
+- SQLite 事务、索引、WAL、foreign key、busy timeout 和 `PRAGMA user_version`。
 
 **工程**
 
-- 保存消息、轮次、预算、ToolCall 状态和停止原因。
-- Checkpoint 不保存明文 Secret。
-- 使用 session/run/turn/call ID 关联事件。
-- Trace 包含耗时、usage、权限和脱敏错误。
+- M3b 用一个 `BEGIN IMMEDIATE` 同时追加 Trace 与更新 Session/Run projection。
+- 每次 Provider 前写 `ModelStarted`，每次 Tool 执行前写 `ToolStarted`。
+- Required Journal 失败立即停止；UI/日志 EventSink 继续 best-effort。
+- 保存 Run 起止、停止原因、轮次、ToolCall 数量和累计 usage。
+- Trace 不保存 prompt、arguments、ToolResult、diff 或命令输出。
+- 配置 Secret 只在自由错误文本中按值替换；未知 Secret 无法自动识别。
+- 查询、事件大小、Session 事件数和数据库锁等待都有硬上限。
+- M3c 才保存消息/Checkpoint，并处理 started-only Tool 的恢复决策。
 
 **验收练习**
 
-- 在工具执行前后注入中断并恢复。
-- 重复 Resume 不会重放已完成的高风险操作。
-- 旧 Session 可迁移或明确拒绝。
-- 根据 Trace 重建关键时间线。
+- 画出成功一轮 ToolCall 的 8 个事件并说明每个写入时机。
+- 在 `RunStopped` Trace insert 前注入 SQLite trigger，证明 projection 同事务回滚。
+- 同一 event ID 重放两次，再修改 payload 重放，解释两个结果为什么不同。
+- 删除中间 sequence、修改 previous hash、payload 和 Session head，分别运行完整性验证。
+- 锁住数据库超过 busy timeout，验证 Agent 停止而不是无限重试。
+- 对比 Session、Run、Trace 与 Checkpoint：指出哪些数据能查询、哪些数据可恢复。
+- 解释为什么 started-only 写操作在 Resume 时不能自动重放。
+
+**Java/Flink/Kafka 迁移类比**
+
+| 现有经验 | M3b 对应概念 |
+|---|---|
+| Kafka partition log | 一个 Session 内按 sequence 追加的 Trace |
+| Kafka producer idempotency key | 全局唯一 `event_id` |
+| Flink keyed state | Session/Run projection |
+| Flink checkpoint barrier | `ToolStarted` 只是动作边界，不是 checkpoint |
+| JDBC transaction | Trace insert 与 projection update 原子提交 |
+| 数据库 materialized view | Session/Run 表从事件生命周期维护 |
+| Backpressure/timeout | SQLite busy timeout 后 fail closed |
+
+**M3b 代码阅读顺序**
+
+1. `agent/events.py`：事件 ID、started/completed 合同和 required `EventJournal`。
+2. `persistence/models.py`：Session/Run/Trace DTO 与资源上限。
+3. `persistence/schema.py`：SQLite v1 DDL 与连接 PRAGMA。
+4. `persistence/codec.py`：canonical JSON、Secret scrub 和 event hash。
+5. `persistence/journal.py`：事务、幂等、状态迁移和 projection。
+6. `persistence/trace.py`：typed read 与分页完整性验证。
+7. `agent/runtime.py`：required Journal 和 best-effort EventSink 的失败策略。
+8. `tests/integration/test_persistent_trace_agent.py`：重开、真实写入阻断与篡改证据。
 
 ### L8：Git、测试与 Repair Loop
 

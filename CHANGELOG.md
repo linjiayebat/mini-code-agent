@@ -4,6 +4,31 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+## [0.8.0-alpha.0] - 2026-06-30
+
+### Added
+
+- SQLite schema v1 for versioned Session metadata, Run projections, and append-only Trace events.
+- UUID event IDs, per-Session sequence allocation, canonical JSON, and SHA-256 hash chains.
+- Bounded Session/Run/Trace queries plus complete paged integrity verification.
+- `ModelStarted` and `ToolStarted` lifecycle events with cumulative terminal Run metrics.
+- Optional required `EventJournal` alongside the existing best-effort `EventSink`.
+
+### Changed
+
+- Runtime stops with `PERSISTENCE_ERROR` when a configured journal cannot append.
+- `ToolStarted` is persisted before execution and `ToolCompleted` after execution.
+- Cancellation attempts one terminal journal event but still re-raises `CancelledError`.
+
+### Security
+
+- Trace and projections commit or roll back in one `BEGIN IMMEDIATE` transaction.
+- SQLite uses WAL, foreign keys, full synchronous writes, parameterized SQL, and bounded busy
+  timeout.
+- Typed Trace excludes prompts, Tool arguments/results, patches, and command output.
+- Configured Secret values are scrubbed from free-form stop errors before hashing and storage.
+- Hash-chain integrity is explicitly not claimed as signed, authenticated, or tamper-proof.
+
 ## [0.7.0-alpha.0] - 2026-06-29
 
 ### Added

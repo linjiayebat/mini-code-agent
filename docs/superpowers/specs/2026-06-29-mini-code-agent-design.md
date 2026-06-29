@@ -170,8 +170,10 @@ Optional Extensions
 
 ### 5.7 Session、Checkpoint 与 Trace
 
-- SQLite 保存 Session、Checkpoint 元数据、事件索引和版本。
-- 文件系统保存长输出、补丁、摘要和其他大对象。
+- SQLite 保存版本化 Session/Run、Checkpoint 元数据和有界类型化生命周期事件。
+- M3b 在一个事务内追加 Trace 并更新 Session/Run projection；required Journal 失败会停止
+  后续 Provider/Tool 工作。
+- 文件系统在后续里程碑保存长输出、补丁、摘要和其他大对象。
 - Checkpoint 用于恢复可变工作状态。
 - Trace 记录不可变生命周期事实，用于调试、评估和审计。
 

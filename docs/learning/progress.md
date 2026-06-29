@@ -9,7 +9,7 @@
 | L4 Workspace and Policy | Complete locally | WorkspaceBoundary + deterministic Policy + approval governance |
 | L5 File/Edit/Command/Git tools | In progress | Read/Search/Write/Edit/argv Command complete; Git deferred |
 | L6 Context Budget | Complete locally | Deterministic estimator, atomic selection, side-effect pinning, runtime integration |
-| L7 Session/Checkpoint/Trace | Not started | |
+| L7 Session/Checkpoint/Trace | In progress | M3b versioned Session/Run and append-only Trace complete; M3c Checkpoint/Resume pending |
 | L8 Git/test/repair | Not started | |
 | L9 Skills and Hooks | Not started | |
 | L10 MCP | Not started | |
@@ -338,3 +338,53 @@
 - Package version: `0.7.0a0`; local milestone tag target: `v0.7.0-alpha.0`.
 - Linux behavior and remote GitHub Actions still require remote evidence; no remote result is
   claimed.
+
+## M3b Versioned Session and Trace Notes
+
+- M3b uses SQLite as both event log and projection store because a SQLite index plus JSONL payload
+  cannot share one atomic commit.
+- `sessions` and `runs` are materialized lifecycle projections. `trace_events` is the append-only
+  source of ordered evidence; neither is a Checkpoint.
+- `PRAGMA user_version = 1` identifies the database format. Future versions are rejected rather
+  than silently downgraded or guessed.
+- Each append uses `BEGIN IMMEDIATE`, updates projection, inserts one event, advances counters and
+  hash head, then commits. Trigger fault injection proves all changes roll back together.
+- `event_id` handles exact retry idempotency. `(session_id, sequence)` establishes deterministic
+  order. Reusing an event ID with different payload or Session fails closed.
+- `ModelStarted` is recorded before Provider I/O and `ToolStarted` before Tool execution.
+  `ToolStarted` without `ToolCompleted` is indeterminate external state.
+- Required `EventJournal` failure stops later work with `PERSISTENCE_ERROR`; UI/log `EventSink`
+  remains best effort.
+- Cancellation remains dominant: Runtime attempts a terminal event once and re-raises
+  `CancelledError` even if journaling fails.
+- Trace hashes bind schema, Session, sequence, previous hash, and typed event payload. They detect
+  inconsistent data but are not signatures or authenticated audit records.
+- Typed events exclude prompts, arguments, ToolResults, patches, and command output. Configured
+  Secret values are replaced only in free-form stop errors.
+- WAL, full synchronous writes, foreign keys, event/query budgets, and bounded busy timeout are
+  local durability controls, not distributed consistency.
+
+## M3b Exercises
+
+1. Trace `RunStarted -> ModelStarted -> ModelCompleted -> ToolStarted -> ToolCompleted ->
+   ModelStarted -> ModelCompleted -> RunStopped` and identify which operations occur between
+   each pair.
+2. Explain why writing JSONL first and SQLite second cannot guarantee atomicity across a crash.
+3. Re-append the same event object, then reuse its ID with a different Run; compare outcomes.
+4. Hold `BEGIN IMMEDIATE` in a second connection and measure where the busy timeout becomes
+   `PERSISTENCE_ERROR`.
+5. Trigger failure on the second governed `write_file` ToolStarted and explain why only the first
+   file exists.
+6. Modify one payload and recompute no hashes; then explain why an attacker able to rewrite all
+   hashes is outside this integrity claim.
+7. Compare an active Run, a started-only Tool, and a Checkpoint; define what M3c must decide for
+   each.
+
+## M3b Current Verification
+
+- Persistence unit suite: 42 passed.
+- Runtime/Context/Persistence/Integration focused suite: 152 passed.
+- Current full local development suite: 505 passed; 3 Windows symlink privilege skips.
+- Ruff format/check and strict Pyright: passed.
+- Full dual-Python coverage, security scans, hashed build, and four artifact smoke tests are
+  recorded only after the `v0.8.0-alpha.0` release gate completes.
