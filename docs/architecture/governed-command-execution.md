@@ -51,7 +51,7 @@ a smaller command without parsing exception text.
 | Combined retained stdout/stderr | 1 MiB | 8 MiB |
 | Argv items | 64 | 64 |
 | Characters per argument | 4,096 | 4,096 |
-| Cleanup wait | 2 seconds | 10 seconds |
+| Cleanup wait | 5 seconds | 10 seconds |
 
 The stream readers continue draining and discarding after the retained-byte budget is exhausted.
 This prevents pipe backpressure from deadlocking process termination without allowing memory to
@@ -76,6 +76,8 @@ process from opening secret files available to the current OS user.
 - Output overflow and timeout terminate the tree before returning.
 - Cancellation shields bounded cleanup and then re-raises `CancelledError`.
 - Unexpected pipe-reader failures terminate the tree and become `command_io_failed`.
+- If tree cleanup fails, the runner still attempts to kill the root but returns
+  `command_cleanup_failed`; partial cleanup is never reported as success.
 
 Tests use a parent Python process that starts a heartbeat-writing grandchild. After runner return,
 the heartbeat must stop changing. This verifies the lifecycle postcondition without relying on

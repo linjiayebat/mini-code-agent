@@ -86,7 +86,7 @@ an infrastructure exception. Spawn/path failures return static structured tool e
 - cancellation first cleans the process tree, then re-raises `CancelledError`;
 - POSIX starts a new session and signals its process group;
 - Windows starts a new process group without a visible console and uses `taskkill /T /F`;
-- cleanup has a bounded grace period and escalates where supported.
+- cleanup has a bounded 5-second default grace period and escalates where supported.
 
 The runner inherits only a small platform allowlist needed to locate and start tools: PATH,
 temporary-directory, locale, home, and Windows system variables. API keys and arbitrary project
