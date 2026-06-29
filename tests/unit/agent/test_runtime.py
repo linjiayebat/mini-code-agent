@@ -183,6 +183,27 @@ async def test_runtime_stops_on_normalized_provider_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_normalized_provider_timeout_uses_timeout_stop_reason() -> None:
+    runtime = AgentRuntime(
+        ScriptedProvider(
+            [
+                ProviderError(
+                    ProviderErrorCode.TIMEOUT,
+                    "Provider request timed out.",
+                    retryable=True,
+                )
+            ]
+        ),
+        RuntimeInfoTool(),
+    )
+
+    result = await runtime.run(user_prompt="inspect")
+
+    assert result.stop_reason is StopReason.PROVIDER_TIMEOUT
+    assert result.error == "Provider request timed out."
+
+
+@pytest.mark.asyncio
 async def test_runtime_hides_unexpected_provider_exception() -> None:
     runtime = AgentRuntime(ExplodingProvider([]), RuntimeInfoTool())
 

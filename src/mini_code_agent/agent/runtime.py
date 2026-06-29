@@ -24,6 +24,7 @@ from mini_code_agent.providers.base import (
     ModelRequest,
     ModelResponse,
     ProviderError,
+    ProviderErrorCode,
     TokenUsage,
 )
 from mini_code_agent.tools.base import SideEffect, ToolExecutor
@@ -98,10 +99,15 @@ class AgentRuntime:
                     "Provider request timed out.",
                 )
             except ProviderError as exc:
+                reason = (
+                    StopReason.PROVIDER_TIMEOUT
+                    if exc.code is ProviderErrorCode.TIMEOUT
+                    else StopReason.PROVIDER_ERROR
+                )
                 return self._stop(
                     active_run_id,
                     messages,
-                    StopReason.PROVIDER_ERROR,
+                    reason,
                     turn - 1,
                     tool_call_count,
                     usage,
