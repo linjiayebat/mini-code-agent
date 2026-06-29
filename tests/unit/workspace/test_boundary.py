@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from mini_code_agent.workspace.boundary import WorkspaceBoundary
 from mini_code_agent.workspace.errors import WorkspaceError, WorkspaceErrorCode
-from mini_code_agent.workspace.models import SearchLimits, WorkspaceLimits
+from mini_code_agent.workspace.models import SearchLimits, WorkspaceLimits, WorkspaceTextFile
 
 
 def test_workspace_error_exposes_only_safe_public_message(tmp_path: Path) -> None:
@@ -129,6 +129,7 @@ def test_boundary_resolves_regular_file_inside_workspace(tmp_path: Path) -> None
         "bad\0name",
         "dir//file",
         "dir/./file",
+        ".git/config",
         "x" * 1025,
     ],
 )
@@ -181,3 +182,164 @@ def test_resolve_rejects_symlink_component(tmp_path: Path) -> None:
         boundary.resolve_file("link/file.txt")
 
     assert captured.value.code is WorkspaceErrorCode.LINK_TRAVERSAL
+
+
+def test_read_text_returns_safe_metadata_and_unicode(tmp_path: Path) -> None:
+    source = tmp_path / "docs" / "note.txt"
+    source.parent.mkdir()
+    source.write_bytes("first\n中文\n".encode())
+    boundary = WorkspaceBoundary(tmp_path)
+
+    result = boundary.read_text("docs/note.txt")
+
+    assert result == WorkspaceTextFile(
+        path="docs/note.txt",
+        text="first\n中文\n",
+        byte_count=len("first\n中文\n".encode()),
+        line_count=2,
+    )
+    assert str(tmp_path.resolve()) not in result.model_dump_json()
+
+
+def test_read_text_accepts_empty_file_and_utf8_bom(tmp_path: Path) -> None:
+    (tmp_path / "empty.txt").write_bytes(b"")
+    (tmp_path / "bom.txt").write_bytes(b"\xef\xbb\xbfcontent")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    empty = boundary.read_text("empty.txt")
+    bom = boundary.read_text("bom.txt")
+
+    assert empty.text == ""
+    assert empty.byte_count == 0
+    assert empty.line_count == 0
+    assert bom.text == "content"
+    assert bom.byte_count == 10
+    assert bom.line_count == 1
+
+
+def test_read_text_accepts_exact_size_limit(tmp_path: Path) -> None:
+    (tmp_path / "exact.txt").write_bytes(b"12345")
+    boundary = WorkspaceBoundary(
+        tmp_path,
+        limits=WorkspaceLimits(max_file_bytes=5),
+    )
+
+    result = boundary.read_text("exact.txt")
+
+    assert result.text == "12345"
+    assert result.byte_count == 5
+
+
+def test_read_text_rejects_file_over_size_limit(tmp_path: Path) -> None:
+    (tmp_path / "large.txt").write_bytes(b"123456")
+    boundary = WorkspaceBoundary(
+        tmp_path,
+        limits=WorkspaceLimits(max_file_bytes=5),
+    )
+
+    with pytest.raises(WorkspaceError) as captured:
+        boundary.read_text("large.txt")
+
+    assert captured.value.code is WorkspaceErrorCode.TOO_LARGE
+    assert str(tmp_path.resolve()) not in str(captured.value)
+
+
+@pytest.mark.parametrize(
+    ("name", "content", "expected_code"),
+    [
+        ("binary.dat", b"before\0after", WorkspaceErrorCode.BINARY_FILE),
+        ("invalid.txt", b"\xff\xfe", WorkspaceErrorCode.INVALID_ENCODING),
+    ],
+)
+def test_read_text_rejects_binary_or_invalid_encoding(
+    tmp_path: Path,
+    name: str,
+    content: bytes,
+    expected_code: WorkspaceErrorCode,
+) -> None:
+    (tmp_path / name).write_bytes(content)
+    boundary = WorkspaceBoundary(tmp_path)
+
+    with pytest.raises(WorkspaceError) as captured:
+        boundary.read_text(name)
+
+    assert captured.value.code is expected_code
+    assert content.hex() not in str(captured.value)
+
+
+def test_list_files_is_deterministic_and_excludes_git_metadata(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "z.py").write_bytes(b"z")
+    (tmp_path / "src" / "a.py").write_bytes(b"a")
+    (tmp_path / ".hidden").write_bytes(b"hidden")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_bytes(b"secret")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    files = boundary.list_files()
+
+    assert files == (".hidden", "src/a.py", "src/z.py")
+
+
+def test_list_files_can_start_from_subdirectory(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_bytes(b"a")
+    (tmp_path / "outside.py").write_bytes(b"outside")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    files = boundary.list_files("src")
+
+    assert files == ("src/a.py",)
+
+
+@pytest.mark.parametrize(
+    ("limits", "files"),
+    [
+        (
+            SearchLimits(max_files=1),
+            {"a.txt": b"a", "b.txt": b"b"},
+        ),
+        (
+            SearchLimits(max_total_bytes=3),
+            {"a.txt": b"aa", "b.txt": b"bb"},
+        ),
+    ],
+)
+def test_list_files_enforces_file_and_byte_budgets(
+    tmp_path: Path,
+    limits: SearchLimits,
+    files: dict[str, bytes],
+) -> None:
+    for name, content in files.items():
+        (tmp_path / name).write_bytes(content)
+    boundary = WorkspaceBoundary(tmp_path)
+
+    with pytest.raises(WorkspaceError) as captured:
+        boundary.list_files(limits=limits)
+
+    assert captured.value.code is WorkspaceErrorCode.TRAVERSAL_BUDGET
+
+
+def test_list_files_enforces_depth_budget(tmp_path: Path) -> None:
+    nested = tmp_path / "one" / "two"
+    nested.mkdir(parents=True)
+    (nested / "deep.txt").write_bytes(b"deep")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    with pytest.raises(WorkspaceError) as captured:
+        boundary.list_files(limits=SearchLimits(max_depth=1))
+
+    assert captured.value.code is WorkspaceErrorCode.TRAVERSAL_BUDGET
+
+
+def test_list_files_rejects_missing_or_file_start(tmp_path: Path) -> None:
+    (tmp_path / "file.txt").write_bytes(b"text")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    with pytest.raises(WorkspaceError) as missing:
+        boundary.list_files("missing")
+    with pytest.raises(WorkspaceError) as file_start:
+        boundary.list_files("file.txt")
+
+    assert missing.value.code is WorkspaceErrorCode.NOT_FOUND
+    assert file_start.value.code is WorkspaceErrorCode.WRONG_FILE_TYPE
