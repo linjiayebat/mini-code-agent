@@ -4,7 +4,7 @@
 |---|---|---|
 | L0 Python engineering foundation | Complete locally | Ruff、Pyright、25 passed、build、CLI doctor |
 | L1 Agent Loop | Complete locally | 27 Runtime tests + deterministic ToolCall integration |
-| L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 120 focused tests passed |
+| L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 124 focused tests passed |
 | L3 Tool Registry | Not started | |
 | L4 Workspace and Policy | Not started | |
 | L5 File/Edit/Shell/Git tools | Not started | |
@@ -124,13 +124,13 @@
 
 - Implemented programmatic Anthropic Messages and OpenAI-compatible Chat Completions adapters.
 - Implemented non-streaming and SSE text/tool-call paths, usage and request-ID normalization.
-- Provider-focused suite: 120 passed across shared transport, both adapters, Fake Provider, and
+- Provider-focused suite: 124 passed across shared transport, both adapters, Fake Provider, and
   cross-adapter integration contracts.
 - The same unchanged `AgentRuntime` completes a real-wire-format ToolCall round trip through
   either adapter using credential-free mock HTTP responses.
-- Full repository on Python 3.12.13 and 3.13.14: 187 passed per interpreter; 1 test skipped
+- Full repository on Python 3.12.13 and 3.13.14: 191 passed per interpreter; 1 test skipped
   because the Windows account cannot create symlinks.
-- Python 3.13 branch-aware package coverage: 89.88%, above the configured 85% gate.
+- Python 3.13 branch-aware package coverage: 89.91%, above the configured 85% gate.
 - Ruff format/check and strict Pyright: passed.
 - Bandit source scan: no findings. pip-audit: no known vulnerabilities; the unpublished local
   package itself was skipped because it is not on PyPI.
