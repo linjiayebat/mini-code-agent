@@ -94,3 +94,19 @@ anthropic_api_key = { value = "validation-secret" }
 
     assert result.exit_code == 2
     assert "validation-secret" not in result.stderr
+
+
+def test_doctor_human_output_explains_unusable_data_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_file = tmp_path / "data-file"
+    data_file.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setenv("MINI_CODE_AGENT_DATA_DIR", str(data_file))
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 1
+    assert "Data path usable" in result.stdout
+    assert "Overall healthy" in result.stdout
+    assert "False" in result.stdout

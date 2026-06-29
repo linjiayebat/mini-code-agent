@@ -1,5 +1,6 @@
 import json
 from io import StringIO
+from pathlib import Path
 
 from pydantic import SecretStr
 
@@ -68,3 +69,40 @@ def test_json_log_redacts_configured_secrets_from_messages_and_exceptions() -> N
     assert "message-secret" not in rendered
     assert "exception-secret" not in rendered
     assert rendered.count("***") >= 2
+
+
+def test_json_log_scrubs_secrets_from_objects_and_mapping_keys() -> None:
+    stream = StringIO()
+    logger = configure_logging(
+        "info",
+        stream=stream,
+        secrets=("full-known-secret",),
+    )
+
+    logger.info(
+        "provider event",
+        extra={
+            "event_data": {
+                "path": Path("full-known-secret"),
+                "key-full-known-secret": "safe",
+            }
+        },
+    )
+
+    rendered = stream.getvalue()
+    assert "full-known-secret" not in rendered
+    assert "***" in rendered
+
+
+def test_json_log_scrubs_overlapping_secrets_longest_first() -> None:
+    stream = StringIO()
+    logger = configure_logging(
+        "info",
+        stream=stream,
+        secrets=("secret", "secret-suffix"),
+    )
+
+    logger.info("token=%s", "secret-suffix")
+
+    event = json.loads(stream.getvalue())
+    assert event["message"] == "token=***"

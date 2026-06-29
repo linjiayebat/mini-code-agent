@@ -57,7 +57,10 @@ def _render_report(report: DiagnosticReport) -> None:
     table.add_row("Python supported", str(report.python_supported))
     table.add_row("Platform", report.platform)
     table.add_row("Config", report.config_path)
-    table.add_row("Data directory writable", str(report.data_dir_parent_writable))
+    table.add_row("Data directory exists", str(report.data_dir_exists))
+    table.add_row("Data directory is directory", str(report.data_dir_is_directory))
+    table.add_row("Data path usable", str(report.data_dir_usable))
+    table.add_row("Overall healthy", str(report.healthy))
     console.print(table)
 
 

@@ -52,12 +52,12 @@ def redact(value: object, *, key: str | None = None) -> object:
 
 
 def _normalize_secrets(secrets: Iterable[str | SecretStr]) -> tuple[str, ...]:
-    normalized: list[str] = []
+    normalized: set[str] = set()
     for secret in secrets:
         value = secret.get_secret_value() if isinstance(secret, SecretStr) else secret
-        if value and value not in normalized:
-            normalized.append(value)
-    return tuple(normalized)
+        if value:
+            normalized.add(value)
+    return tuple(sorted(normalized, key=len, reverse=True))
 
 
 def _scrub_text(value: str, secrets: tuple[str, ...]) -> str:
@@ -73,13 +73,15 @@ def _scrub_known_secrets(value: object, secrets: tuple[str, ...]) -> object:
     if isinstance(value, Mapping):
         mapping = cast(Mapping[object, object], value)
         return {
-            str(item_key): _scrub_known_secrets(item_value, secrets)
+            _scrub_text(str(item_key), secrets): _scrub_known_secrets(item_value, secrets)
             for item_key, item_value in mapping.items()
         }
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         sequence = cast(Sequence[object], value)
         return [_scrub_known_secrets(item, secrets) for item in sequence]
-    return value
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    return _scrub_text(str(value), secrets)
 
 
 class JsonFormatter(logging.Formatter):
@@ -102,7 +104,7 @@ class JsonFormatter(logging.Formatter):
                 self.formatException(record.exc_info),
                 self._secrets,
             )
-        return json.dumps(payload, ensure_ascii=False, default=str)
+        return json.dumps(payload, ensure_ascii=False)
 
 
 def configure_logging(
