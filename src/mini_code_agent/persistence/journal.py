@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +7,7 @@ from typing import cast
 
 from mini_code_agent.agent.events import AgentEvent, RunStarted, RunStopped
 from mini_code_agent.agent.models import StopReason
+from mini_code_agent.persistence.codec import encode_event, event_sha256
 from mini_code_agent.persistence.errors import (
     PersistenceError,
     PersistenceErrorCode,
@@ -38,8 +37,7 @@ class SessionEventJournal:
         self._secrets = secrets
 
     def append(self, event: AgentEvent) -> None:
-        payload = _event_payload(event, self._secrets)
-        payload_json = _canonical_json(payload)
+        payload, payload_json = encode_event(event, self._secrets)
         if len(payload_json.encode("utf-8")) > self._limits.max_event_bytes:
             raise PersistenceError(
                 PersistenceErrorCode.LIMIT_EXCEEDED,
@@ -79,7 +77,7 @@ class SessionEventJournal:
                 _apply_projection(connection, self._session_id, session, event)
 
                 sequence = session.next_sequence
-                current_sha256 = _event_sha256(
+                current_sha256 = event_sha256(
                     session_id=self._session_id,
                     sequence=sequence,
                     previous_sha256=session.trace_head_sha256,
@@ -340,45 +338,6 @@ def _stop_run(
         WHERE session_id = ?
         """,
         (session_status.value, session_id),
-    )
-
-
-def _event_payload(
-    event: AgentEvent,
-    secrets: tuple[str, ...],
-) -> dict[str, object]:
-    payload = cast(dict[str, object], event.model_dump(mode="json"))
-    if isinstance(event, RunStopped) and isinstance(payload.get("error"), str):
-        error = cast(str, payload["error"])
-        for secret in secrets:
-            error = error.replace(secret, "***")
-        payload["error"] = error
-    return payload
-
-
-def _event_sha256(
-    *,
-    session_id: str,
-    sequence: int,
-    previous_sha256: str,
-    event_payload: dict[str, object],
-) -> str:
-    envelope = {
-        "event": event_payload,
-        "previous_sha256": previous_sha256,
-        "schema_version": SCHEMA_VERSION,
-        "sequence": sequence,
-        "session_id": session_id,
-    }
-    return hashlib.sha256(_canonical_json(envelope).encode("utf-8")).hexdigest()
-
-
-def _canonical_json(value: object) -> str:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
     )
 
 

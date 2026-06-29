@@ -24,8 +24,14 @@ from mini_code_agent.persistence.models import (
     SessionRecord,
     SessionStatus,
     SessionTraceLimits,
+    TraceRecord,
+    TraceVerification,
 )
 from mini_code_agent.persistence.schema import connect_database, initialize_database
+from mini_code_agent.persistence.trace import (
+    read_trace_records,
+    verify_session_trace,
+)
 
 
 class SqliteSessionTraceStore:
@@ -203,6 +209,40 @@ class SqliteSessionTraceStore:
             self._limits,
             session_id,
             self._secrets,
+        )
+
+    def read_trace(
+        self,
+        session_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 100,
+    ) -> tuple[TraceRecord, ...]:
+        self._ensure_initialized()
+        self._validate_identifier(session_id)
+        self._validate_query_limit(limit)
+        if not 0 <= after_sequence <= self._limits.max_events_per_session:
+            raise PersistenceError(
+                PersistenceErrorCode.LIMIT_EXCEEDED,
+                "Trace query sequence is invalid.",
+            )
+        self.get_session(session_id)
+        return read_trace_records(
+            self._database,
+            self._limits,
+            session_id,
+            after_sequence=after_sequence,
+            limit=limit,
+        )
+
+    def verify_trace(self, session_id: str) -> TraceVerification:
+        self._ensure_initialized()
+        self._validate_identifier(session_id)
+        session = self.get_session(session_id)
+        return verify_session_trace(
+            self._database,
+            self._limits,
+            session,
         )
 
     def _ensure_initialized(self) -> None:
