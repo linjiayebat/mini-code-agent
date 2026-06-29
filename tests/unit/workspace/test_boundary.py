@@ -368,3 +368,57 @@ def test_list_files_rejects_missing_or_file_start(tmp_path: Path) -> None:
 
     assert missing.value.code is WorkspaceErrorCode.NOT_FOUND
     assert file_start.value.code is WorkspaceErrorCode.WRONG_FILE_TYPE
+
+
+def test_resolve_directory_returns_root_and_relative_display(tmp_path: Path) -> None:
+    nested = tmp_path / "src" / "package"
+    nested.mkdir(parents=True)
+    boundary = WorkspaceBoundary(tmp_path)
+
+    root, root_display = boundary.resolve_directory()
+    current, current_display = boundary.resolve_directory(".")
+    resolved, display = boundary.resolve_directory("src/package")
+
+    assert root == tmp_path.resolve()
+    assert current == root
+    assert root_display == current_display == "."
+    assert resolved == nested.resolve()
+    assert display == "src/package"
+
+
+@pytest.mark.parametrize(
+    ("path", "code"),
+    [
+        ("missing", WorkspaceErrorCode.NOT_FOUND),
+        ("file.txt", WorkspaceErrorCode.WRONG_FILE_TYPE),
+        ("../outside", WorkspaceErrorCode.INVALID_PATH),
+        (".git", WorkspaceErrorCode.INVALID_PATH),
+    ],
+)
+def test_resolve_directory_rejects_unsafe_targets(
+    tmp_path: Path,
+    path: str,
+    code: WorkspaceErrorCode,
+) -> None:
+    (tmp_path / "file.txt").write_text("content", encoding="utf-8")
+    boundary = WorkspaceBoundary(tmp_path)
+
+    with pytest.raises(WorkspaceError) as captured:
+        boundary.resolve_directory(path)
+
+    assert captured.value.code is code
+
+
+def test_resolve_directory_rejects_links(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"Directory symlink unavailable in this environment: {exc}")
+
+    with pytest.raises(WorkspaceError) as captured:
+        WorkspaceBoundary(tmp_path).resolve_directory("link")
+
+    assert captured.value.code is WorkspaceErrorCode.LINK_TRAVERSAL

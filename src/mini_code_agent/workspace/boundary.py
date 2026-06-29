@@ -72,6 +72,12 @@ class WorkspaceBoundary:
     def limits(self) -> WorkspaceLimits:
         return self._limits
 
+    def resolve_directory(self, untrusted_path: str | None = None) -> tuple[Path, str]:
+        if untrusted_path is None or untrusted_path == ".":
+            return self._root, "."
+        resolved = self._resolve_directory(untrusted_path)
+        return resolved, resolved.relative_to(self._root).as_posix()
+
     def resolve_file(self, untrusted_path: str) -> Path:
         parts = self._validate_relative_path(untrusted_path)
         candidate = self._root.joinpath(*parts)
