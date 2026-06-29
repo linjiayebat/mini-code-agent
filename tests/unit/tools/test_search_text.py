@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from pathlib import Path
 from typing import cast
 
@@ -286,3 +288,37 @@ async def test_search_rejects_control_characters_in_query(
 
     error = cast(dict[str, object], payload(result.content)["error"])
     assert error["code"] == "invalid_arguments"
+
+
+@pytest.mark.asyncio
+async def test_search_does_not_block_event_loop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "file.txt").write_bytes(b"needle")
+    workspace = WorkspaceBoundary(tmp_path)
+    original_list = workspace.list_files
+
+    def slow_list(*args: object, **kwargs: object) -> tuple[str, ...]:
+        time.sleep(0.15)
+        return original_list(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(workspace, "list_files", slow_list)
+    tool = SearchTextTool(workspace)
+    started = time.perf_counter()
+    task = asyncio.create_task(
+        tool.execute(
+            ToolCall(
+                id="call-1",
+                name="search_text",
+                arguments={"query": "needle"},
+            )
+        )
+    )
+
+    await asyncio.sleep(0.01)
+    elapsed = time.perf_counter() - started
+    result = await task
+
+    assert elapsed < 0.1
+    assert result.is_error is False

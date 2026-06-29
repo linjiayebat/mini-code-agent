@@ -163,6 +163,8 @@
   dispatched implementation disagree.
 - Literal search avoids model-controlled regex complexity. Unicode casefold positions are mapped
   back to original columns instead of reporting offsets in the expanded folded string.
+- Read/Search use `asyncio.to_thread` so bounded disk work does not block the Agent event loop.
+  Cancellation cannot kill a worker thread, but remaining work is read-only and budget-bounded.
 - Workspace checks are not process isolation and do not eliminate TOCTOU if another process can
   mutate the tree. This limitation is explicit rather than hidden behind a “sandbox” claim.
 

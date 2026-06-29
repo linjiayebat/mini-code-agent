@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import ClassVar
 
@@ -70,12 +71,22 @@ class ReadFileTool:
                 "invalid_arguments",
                 "read_file arguments are invalid.",
             )
+        return await asyncio.to_thread(
+            self._execute_validated,
+            call.id,
+            arguments,
+        )
 
+    def _execute_validated(
+        self,
+        call_id: str,
+        arguments: _ReadFileArguments,
+    ) -> ToolResult:
         try:
             source = self._workspace.read_text(arguments.path)
         except WorkspaceError as exc:
             return self._error(
-                call.id,
+                call_id,
                 exc.code.value,
                 exc.public_message,
             )
@@ -93,7 +104,7 @@ class ReadFileTool:
             "truncated": arguments.start_line > 1 or end_line < source.line_count,
         }
         return ToolResult(
-            tool_call_id=call.id,
+            tool_call_id=call_id,
             content=json.dumps(
                 content,
                 ensure_ascii=False,

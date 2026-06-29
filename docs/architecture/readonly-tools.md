@@ -109,3 +109,8 @@ count.
 Binary, malformed UTF-8, and individually oversized files are counted as skipped. Structural
 workspace errors, links, special files, and traversal-budget failures return an error instead of
 silently weakening the boundary.
+
+Read and Search offload bounded filesystem work with `asyncio.to_thread`, so local disk I/O does
+not block provider streaming, timeout delivery, or other event-loop tasks. Cancelling the await
+cannot forcibly terminate a Python worker thread; the remaining work is read-only and still
+bounded by file/traversal/result limits.

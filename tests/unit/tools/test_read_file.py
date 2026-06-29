@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from pathlib import Path
 from typing import cast
 
@@ -165,3 +167,37 @@ async def test_read_file_direct_call_rejects_invalid_arguments(tmp_path: Path) -
     assert result.is_error is True
     error = cast(dict[str, object], payload(result.content)["error"])
     assert error["code"] == "invalid_arguments"
+
+
+@pytest.mark.asyncio
+async def test_read_file_does_not_block_event_loop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "file.txt").write_bytes(b"content")
+    workspace = WorkspaceBoundary(tmp_path)
+    original_read = workspace.read_text
+
+    def slow_read(path: str):  # type: ignore[no-untyped-def]
+        time.sleep(0.15)
+        return original_read(path)
+
+    monkeypatch.setattr(workspace, "read_text", slow_read)
+    tool = ReadFileTool(workspace)
+    started = time.perf_counter()
+    task = asyncio.create_task(
+        tool.execute(
+            ToolCall(
+                id="call-1",
+                name="read_file",
+                arguments={"path": "file.txt"},
+            )
+        )
+    )
+
+    await asyncio.sleep(0.01)
+    elapsed = time.perf_counter() - started
+    result = await task
+
+    assert elapsed < 0.1
+    assert result.is_error is False

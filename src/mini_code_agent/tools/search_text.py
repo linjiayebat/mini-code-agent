@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from fnmatch import fnmatchcase
 from typing import ClassVar
@@ -94,14 +95,24 @@ class SearchTextTool:
                 "invalid_arguments",
                 "search_text arguments are invalid.",
             )
+        return await asyncio.to_thread(
+            self._execute_validated,
+            call.id,
+            arguments,
+        )
 
+    def _execute_validated(
+        self,
+        call_id: str,
+        arguments: _SearchArguments,
+    ) -> ToolResult:
         try:
             paths = self._workspace.list_files(
                 arguments.path,
                 limits=self._limits,
             )
         except WorkspaceError as exc:
-            return self._error(call.id, exc.code.value, exc.public_message)
+            return self._error(call_id, exc.code.value, exc.public_message)
 
         result_limit = min(arguments.max_results, self._limits.max_results)
         needle = arguments.query if arguments.case_sensitive else arguments.query.casefold()
@@ -123,7 +134,7 @@ class SearchTextTool:
                 }:
                     skipped_files += 1
                     continue
-                return self._error(call.id, exc.code.value, exc.public_message)
+                return self._error(call_id, exc.code.value, exc.public_message)
 
             files_scanned += 1
             for line_number, raw_line in enumerate(
@@ -169,7 +180,7 @@ class SearchTextTool:
                     if len(matches) >= result_limit:
                         truncated = True
                         return self._success(
-                            call.id,
+                            call_id,
                             arguments.query,
                             matches,
                             files_scanned,
@@ -179,7 +190,7 @@ class SearchTextTool:
                     offset = index + max(1, len(needle))
 
         return self._success(
-            call.id,
+            call_id,
             arguments.query,
             matches,
             files_scanned,
