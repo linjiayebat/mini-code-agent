@@ -1,10 +1,20 @@
-import pytest
-from pydantic import ValidationError
+from collections.abc import Callable
 
-from mini_code_agent.agent.events import ContextCompacted, RecordingEventSink, RunStarted
+import pytest
+from pydantic import TypeAdapter, ValidationError
+
+from mini_code_agent.agent import events as event_models
+from mini_code_agent.agent.events import (
+    AgentEvent,
+    ContextCompacted,
+    RecordingEventSink,
+    RunStarted,
+    RunStopped,
+)
 from mini_code_agent.agent.models import AgentLimits, AgentResult, StopReason
 from mini_code_agent.domain.messages import Message
 from mini_code_agent.providers.base import TokenUsage
+from mini_code_agent.tools.base import SideEffect
 
 
 def test_recording_sink_preserves_typed_event_order() -> None:
@@ -15,6 +25,108 @@ def test_recording_sink_preserves_typed_event_order() -> None:
 
     assert sink.events == [event]
     assert sink.events[0].run_id == "run-1"
+
+
+def test_lifecycle_events_have_unique_immutable_event_ids() -> None:
+    model_started = event_models.ModelStarted(
+        run_id="run-1",
+        turn=1,
+        request_id="run-1:1",
+    )
+    tool_started = event_models.ToolStarted(
+        run_id="run-1",
+        turn=1,
+        tool_call_id="call-1",
+        tool_name="write_file",
+        side_effect=SideEffect.WRITE,
+    )
+    stopped = RunStopped(
+        run_id="run-1",
+        turns=1,
+        reason=StopReason.COMPLETED,
+        tool_calls=1,
+        usage=TokenUsage(input_tokens=10, output_tokens=5),
+    )
+
+    event_ids = {model_started.event_id, tool_started.event_id, stopped.event_id}
+    assert len(event_ids) == 3
+    assert all(len(event_id) == 36 for event_id in event_ids)
+    with pytest.raises(ValidationError):
+        stopped.event_id = "changed"  # type: ignore[misc]
+
+
+def test_started_events_round_trip_through_agent_event_union() -> None:
+    adapter = TypeAdapter[AgentEvent](AgentEvent)
+    events = (
+        event_models.ModelStarted(run_id="run-1", turn=1, request_id="run-1:1"),
+        event_models.ToolStarted(
+            run_id="run-1",
+            turn=1,
+            tool_call_id="call-1",
+            tool_name="run_command",
+            side_effect=SideEffect.EXECUTE,
+        ),
+    )
+
+    reparsed = tuple(adapter.validate_json(event.model_dump_json()) for event in events)
+
+    assert reparsed == events
+
+
+def test_run_stopped_serializes_cumulative_metrics() -> None:
+    event = RunStopped(
+        run_id="run-1",
+        turns=3,
+        reason=StopReason.PROVIDER_ERROR,
+        tool_calls=2,
+        usage=TokenUsage(input_tokens=100, output_tokens=25),
+        error="Provider request failed.",
+    )
+
+    assert event.model_dump(mode="json") == {
+        "event_id": event.event_id,
+        "run_id": "run-1",
+        "timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
+        "type": "run_stopped",
+        "turns": 3,
+        "reason": "provider_error",
+        "tool_calls": 2,
+        "usage": {"input_tokens": 100, "output_tokens": 25},
+        "error": "Provider request failed.",
+    }
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        lambda: RunStarted(run_id="x" * 97, max_turns=1),
+        lambda: event_models.ModelStarted(run_id="run-1", turn=101, request_id="request"),
+        lambda: event_models.ModelStarted(run_id="run-1", turn=1, request_id="x" * 194),
+        lambda: event_models.ToolStarted(
+            run_id="run-1",
+            turn=1,
+            tool_call_id="x" * 129,
+            tool_name="read_file",
+            side_effect=SideEffect.READ_ONLY,
+        ),
+        lambda: RunStopped(
+            run_id="run-1",
+            turns=101,
+            reason=StopReason.MAX_TURNS,
+        ),
+        lambda: RunStopped(
+            run_id="run-1",
+            turns=1,
+            reason=StopReason.PROVIDER_ERROR,
+            error="x" * 501,
+        ),
+    ],
+)
+def test_lifecycle_events_reject_unbounded_metadata(
+    event: Callable[[], object],
+) -> None:
+    with pytest.raises(ValidationError):
+        event()
 
 
 def test_agent_limits_reject_unbounded_zero_turn_configuration() -> None:
