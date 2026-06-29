@@ -1,12 +1,19 @@
-from typer.testing import CliRunner
+import shutil
+import subprocess
 
 from mini_code_agent import __version__
-from mini_code_agent.cli import app
 
 
 def verify_installed_package() -> None:
-    result = CliRunner().invoke(app, ["--version"])
-    assert result.exit_code == 0
+    executable = shutil.which("mini-code-agent")
+    assert executable is not None
+    result = subprocess.run(
+        [executable, "--version"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
     assert result.stdout.strip() == __version__
 
 

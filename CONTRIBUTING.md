@@ -13,7 +13,7 @@ uv run ruff format --check .
 uv run ruff check .
 uv run pyright
 uv run pytest --cov
-uv build
+uv build --build-constraint build-constraints.txt --require-hashes
 ```
 
 Changes to public behavior require tests. Security-sensitive behavior requires negative tests.

@@ -30,12 +30,13 @@ dependencies = [
 mini-code-agent = "mini_code_agent.cli:app"
 
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.30.1"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
     "build>=1.2,<2",
+    "hatchling==1.30.1",
     "pyright>=1.1.390",
     "pytest>=8.3,<10",
     "pytest-cov>=6,<8",

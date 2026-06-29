@@ -20,6 +20,7 @@ uv run pytest
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
+uv build --build-constraint build-constraints.txt --require-hashes
 ```
 
 If `uv` was installed by `pip` but is not available on the Windows `PATH`, use
