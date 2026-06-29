@@ -70,7 +70,7 @@ replaying uncheckpointed side effects.
 
 ## Task 7: Runtime Checkpoint and Resume Integration
 
-**Status:** Pending
+**Status:** Complete
 
 - Save initial and post-ToolResult stable Checkpoints.
 - Treat save failure as required persistence failure before the next Provider call.

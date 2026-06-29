@@ -65,6 +65,26 @@ def workspace_sha256(
     return manifest.hexdigest()
 
 
+class FilesystemWorkspaceState:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        limits: CheckpointLimits | None = None,
+        config: WorkspaceScanConfig | None = None,
+    ) -> None:
+        self._root = root
+        self._limits = limits
+        self._config = config
+
+    def current_sha256(self) -> str:
+        return workspace_sha256(
+            self._root,
+            limits=self._limits,
+            config=self._config,
+        )
+
+
 class _ScanCounters:
     __slots__ = ("bytes", "files")
 

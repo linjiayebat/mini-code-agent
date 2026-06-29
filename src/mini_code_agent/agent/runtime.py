@@ -5,6 +5,7 @@ import json
 import re
 from contextlib import suppress
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
 
@@ -22,6 +23,13 @@ from mini_code_agent.agent.events import (
     ToolStarted,
 )
 from mini_code_agent.agent.models import AgentLimits, AgentResult, StopReason
+from mini_code_agent.checkpoint.fingerprint import tool_contract_sha256
+from mini_code_agent.checkpoint.models import (
+    CheckpointDraft,
+    CheckpointWriter,
+    ResumeState,
+    WorkspaceStateProvider,
+)
 from mini_code_agent.context.errors import ContextError
 from mini_code_agent.context.manager import ContextManager, ContextPreparer
 from mini_code_agent.context.models import ContextWindow
@@ -63,6 +71,8 @@ class AgentRuntime:
         events: EventSink | None = None,
         journal: EventJournal | None = None,
         context: ContextPreparer | None = None,
+        checkpoints: CheckpointWriter | None = None,
+        workspace: WorkspaceStateProvider | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -70,6 +80,10 @@ class AgentRuntime:
         self._events = events or NullEventSink()
         self._journal = journal
         self._context = context or ContextManager()
+        self._checkpoints = checkpoints
+        self._workspace = workspace
+        if checkpoints is not None and (journal is None or workspace is None):
+            raise ValueError("Checkpointing requires a journal and Workspace state provider.")
         definitions = tools.definitions
         names = tuple(definition.name for definition in definitions)
         if len(set(names)) != len(names):
@@ -82,6 +96,7 @@ class AgentRuntime:
         self._definitions = definitions
         self._tool_names = frozenset(names)
         self._side_effects = {definition.name: definition.side_effect for definition in definitions}
+        self._tool_contract_sha256 = tool_contract_sha256(definitions)
 
     async def run(
         self,
@@ -102,9 +117,29 @@ class AgentRuntime:
                     max_turns=self._limits.max_turns,
                 )
             )
+            self._save_checkpoint(state, system_prompt)
             return await self._run_loop(state, system_prompt=system_prompt)
         except _JournalFailure:
             return self._persistence_failure(state)
+
+    async def resume(self, state: ResumeState) -> AgentResult:
+        checkpoint = state.checkpoint
+        run_state = _RunState(
+            run_id=state.resumed_run_id,
+            messages=list(checkpoint.messages),
+            usage=checkpoint.usage,
+            seen_call_ids=set(checkpoint.seen_call_ids),
+            turns=checkpoint.turns,
+            tool_calls=checkpoint.tool_calls,
+        )
+        try:
+            self._save_checkpoint(run_state, checkpoint.system_prompt)
+            return await self._run_loop(
+                run_state,
+                system_prompt=checkpoint.system_prompt,
+            )
+        except _JournalFailure:
+            return self._persistence_failure(run_state)
 
     async def _run_loop(
         self,
@@ -112,7 +147,7 @@ class AgentRuntime:
         *,
         system_prompt: str,
     ) -> AgentResult:
-        for turn in range(1, self._limits.max_turns + 1):
+        for turn in range(state.turns + 1, self._limits.max_turns + 1):
             try:
                 window_candidate = cast(
                     object,
@@ -288,6 +323,7 @@ class AgentRuntime:
                     content=tuple(tool_results),
                 )
             )
+            self._save_checkpoint(state, system_prompt)
 
         return self._stop(
             state,
@@ -380,6 +416,31 @@ class AgentRuntime:
             except Exception:
                 raise _JournalFailure from None
         self._publish(event)
+
+    def _save_checkpoint(self, state: _RunState, system_prompt: str) -> None:
+        if self._checkpoints is None:
+            return
+        workspace = self._workspace
+        if workspace is None:
+            raise _JournalFailure
+        try:
+            self._checkpoints.save(
+                CheckpointDraft(
+                    checkpoint_id=str(uuid4()),
+                    source_run_id=state.run_id,
+                    created_at=datetime.now(UTC),
+                    system_prompt=system_prompt,
+                    messages=tuple(state.messages),
+                    turns=state.turns,
+                    tool_calls=state.tool_calls,
+                    usage=state.usage,
+                    seen_call_ids=frozenset(state.seen_call_ids),
+                    tool_contract_sha256=self._tool_contract_sha256,
+                    workspace_sha256=workspace.current_sha256(),
+                )
+            )
+        except Exception:
+            raise _JournalFailure from None
 
     def _emit_cancelled(self, state: _RunState) -> None:
         event = RunStopped(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +13,14 @@ CHECKPOINT_FORMAT_VERSION = 1
 _IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 _CallId = Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class CheckpointWriter(Protocol):
+    def save(self, draft: CheckpointDraft) -> CheckpointSnapshot: ...
+
+
+class WorkspaceStateProvider(Protocol):
+    def current_sha256(self) -> str: ...
 
 
 class CheckpointStatus(StrEnum):
