@@ -4,6 +4,8 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+## [0.5.0-alpha.0] - 2026-06-29
+
 ### Added
 
 - Deterministic allow/ask/deny Policy Engine with risk, resource, session, and trust matching.

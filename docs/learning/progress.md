@@ -229,8 +229,16 @@
 ## M2b Local Verification
 
 - Governed-write focused tests: 32 unit tests plus 3 end-to-end integration tests passed.
-- Full development suite on Python 3.13.14: 348 passed; 2 Windows symlink privilege skips.
+- Full development suite on Python 3.12.13 and 3.13.14: 348 passed per interpreter; 2 Windows
+  symlink privilege skips per interpreter.
 - Branch-aware package coverage: 90.35%, above the configured 85% gate.
 - Ruff format/check and strict Pyright: passed.
-- Python 3.12/3.13, security scan, build, and installed artifact smoke evidence will be recorded
-  during the `v0.5.0-alpha.0` release gate; they are not claimed yet.
+- Bandit source scan: no findings. pip-audit: no known vulnerabilities; the unpublished local
+  package itself was skipped because it is not on PyPI.
+- Hashed build produced `mini_code_agent-0.5.0a0-py3-none-any.whl` and
+  `mini_code_agent-0.5.0a0.tar.gz`.
+- Wheel and sdist each passed isolated installed console-script smoke tests on Python 3.12 and
+  3.13.
+- Package version: `0.5.0a0`; local milestone tag target: `v0.5.0-alpha.0`.
+- Linux behavior and remote GitHub Actions still require remote evidence; no remote result is
+  claimed.
