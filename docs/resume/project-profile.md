@@ -1,12 +1,13 @@
 # Mini CodeAgent 简历项目包
 
-> 项目状态：M0 工程基础与 M1 Provider-neutral Agent Core 已在本地完成；真实模型 Adapter 待 M1b。
+> 项目状态：M0 工程基础、M1 Provider-neutral Agent Core 与 M1b Anthropic/OpenAI-compatible
+> Adapter 已在本地完成；真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
 >
 > 本文中的功能、性能和指标是目标或验收方案。只有得到代码、测试、CI、Benchmark 或 Release 证据后，才能改写为已完成成果。
 
 ## 1. 30 秒项目介绍
 
-正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，计划通过统一 Provider 协议兼容 Anthropic 与 OpenAI-compatible 模型，以跨平台 CLI 作为主要交互入口。当前已完成可复现 Python 工程骨架、强类型配置、密钥安全日志、诊断 CLI，以及带原生 ToolCall、硬限制、超时、取消传播和类型化事件的 Provider-neutral Agent Core。
+正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成可复现 Python 工程骨架、强类型配置、密钥安全日志、诊断 CLI、带硬限制和取消传播的 Agent Core，以及同步/流式模型适配、防失控 HTTP 边界和原生 ToolCall 往返。
 
 规划能力包括可解释 Agent Loop、强类型 Tool Registry、安全 Workspace、allow/ask/deny 权限决策、文件编辑与 Shell 工具、Context Budget 与压缩、Session/Checkpoint/Resume、结构化 Trace，以及 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
 
@@ -23,15 +24,15 @@
 
 最终技术栈以 `pyproject.toml`、ADR 和发布版本为准。
 
-M0/M1 已实际使用 Python 3.13、`asyncio`、`Protocol`、uv、Hatchling、Pydantic v2、
-pydantic-settings、Platformdirs、Typer、Rich、Pytest、pytest-asyncio、Coverage、Ruff 与
-Pyright；其余技术随对应里程碑落地。
+M0/M1/M1b 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
+Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
+Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
 
 | 分类 | 技术 |
 |---|---|
 | 语言与运行时 | Python 3.12/3.13、`asyncio`、`dataclasses`、`enum` |
 | 类型系统 | `typing.Protocol`、Generics、TypedDict、严格 Pyright |
-| 模型接入 | Anthropic Adapter、OpenAI-compatible Adapter、HTTP/SSE 流式传输 |
+| 模型接入 | Anthropic Messages、OpenAI-compatible Chat Completions、HTTPX、httpx-sse |
 | 数据模型 | Pydantic v2、JSON Schema |
 | CLI | Typer、Rich |
 | 工具系统 | 强类型 Tool Registry、统一 Tool Result/Error |
@@ -64,7 +65,9 @@ Pyright；其余技术随对应里程碑落地。
 | 亮点 | 为什么需要 | 技术实现 | 实现功能 | 解决的问题 | 指标或证据 |
 |---|---|---|---|---|---|
 | 可解释 Agent Loop | 重型框架容易隐藏状态流转、错误传播和模型调用成本 | 显式状态机、`asyncio`、批次预校验、类型化事件、最大轮次/ToolCall/超时限制 | 编排模型请求、原生 ToolCall、结果回传、取消和确定性停止 | 避免无限循环、部分副作用、隐式控制流和框架锁定 | M1 27 项 Runtime 单测与 1 项完整 ToolCall 集成测试通过 |
-| Provider-neutral Adapter | 单一供应商会带来协议、能力和成本锁定 | `Protocol`、递归不可变 Message/ToolCall、同步/流事件、capability、usage 与错误归一化 | Agent Core 仅依赖领域协议，不导入厂商 SDK | 隔离消息格式、流式事件、usage 和错误语义差异 | Provider 合约与 Fake Provider 6 项测试通过；真实 Adapter 待 M1b |
+| Provider-neutral Adapter | 单一供应商会带来协议、能力和成本锁定 | `Protocol`、递归不可变 Message/ToolCall、Anthropic/OpenAI 防腐层、capability、usage 与错误归一化 | 同一 Agent Runtime 无分支切换两种 wire protocol，并完成 ToolCall 往返 | 隔离 content block、role、tool arguments 和 finish reason 差异，避免厂商类型侵入 Core | 112 项 Provider/HTTP/跨适配器测试已收集；两种 mock wire 闭环通过 |
+| 流式 ToolCall 状态机 | SSE 中参数是不完整 JSON，且并行调用会交错，直接解析或执行会产生错误调用 | 异步生成器、Anthropic block lifecycle、OpenAI per-index state、稀疏元数据缓存、终止后 JSON 校验 | 实时输出 text/tool delta，并在完整 lifecycle 后生成唯一 `ResponseCompleted` | 解决分片归属、ID/name 丢失、参数截断、终止事件缺失和错误完成问题 | 覆盖交错双工具、非法 JSON、索引缺口、元数据变化、缺失终止与流内错误 |
+| 安全 Provider HTTP 边界 | 模型响应和错误体不可信，可能泄密或造成内存/连接失控 | HTTPX async context、SSE parser、超时、16 MiB 硬上限、URL/header 校验、client ownership、静态公开错误 | 对同步/流响应统一限制、清理、分类和脱敏 | 防止原始 body/key/exception 泄漏、无界响应、endpoint 替换和 client 泄漏 | HTTP 状态、超限、非 JSON、错误 Content-Type、网络失败和密钥泄漏负向测试 |
 | 强类型 Tool Registry | 动态参数容易产生缺失、类型漂移和不可解释错误 | Pydantic、JSON Schema、Generics、统一 Result/Error | 注册、发现、校验和调用工具 | 将错误拦截在工具边界，提高可维护性 | Schema snapshot、负向测试、静态类型检查 |
 | 安全 Workspace | Agent 文件权限过大可能影响工作区外文件 | `pathlib`、canonicalization、根目录约束、symlink 检查、原子写入 | 将所有文件操作限制在指定 Workspace | 防止 `../`、绝对路径和符号链接逃逸 | 路径逃逸测试数量和通过率待回填 |
 | 权限决策系统 | 文件写入、命令和网络操作具有不同风险 | Policy Engine、风险分级、规则匹配、交互审批、默认拒绝 | 按工具、参数、路径决定 allow/ask/deny | 保留人在回路，控制真实副作用 | Policy matrix、审批 Trace、安全回归测试 |
@@ -73,7 +76,7 @@ Pyright；其余技术随对应里程碑落地。
 | Checkpoint/Resume | 网络错误、进程退出和人工中断不应导致全部重跑 | SQLite、版本化 Schema、原子快照、幂等恢复 | 保存会话状态并从中断点继续 | 提高长任务容错和问题复现能力 | 故障注入场景、恢复成功率和耗时待回填 |
 | 结构化 Trace | 文本日志无法回答 Agent 为什么执行某动作 | 类型化事件、correlation ID、耗时、usage、JSONL、脱敏 | 记录模型、工具、权限、压缩、恢复和错误事件 | 支持调试、审计、成本分析和行为评估 | Trace Schema 覆盖、解析测试、脱敏测试 |
 | Git/test/repair loop | 文件写完不等于任务完成 | Git status/diff、测试发现、诊断解析、有限重试 | 修改后运行验证，将失败反馈给 Agent 修复 | 建立修改、验证、修复、再验证闭环 | 首次通过率、修复后通过率、平均修复轮次 |
-| 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | 本地 73 项通过、1 项因 Windows symlink 权限跳过、95.82% 覆盖率、wheel/sdist 安装 smoke；远程 CI 待验证 |
+| 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | M1b 最终门禁与发布数据在 `v0.3.0-alpha.0` 前回填；远程 CI 待验证 |
 | 可扩展 Harness | Skills、Hooks、MCP、Subagent 会增加控制流复杂度 | 稳定 Protocol、EventBus、能力声明、依赖倒置 | 在不侵入 Agent Core 的前提下增加能力 | 避免扩展绕过权限、Trace 和 Session | 插件合约测试；扩展数量后续回填 |
 
 ## 6. 指标回填规则
@@ -142,7 +145,12 @@ Pyright；其余技术随对应里程碑落地。
 
 - 实现 Provider-neutral Agent Core，以显式状态机驱动“模型响应 -> ToolCall -> ToolResult -> 最终响应”，通过 27 项 Runtime 单测和 1 项确定性集成测试。
 - 通过最大轮次、ToolCall 总量、Provider/Tool 超时、重复调用 ID 与取消传播控制无限循环和失控副作用。
-- 定义同步/流式 Provider Protocol、能力声明、usage 与公开错误模型，并以 ScriptedProvider 在无网络/Secret 条件下验证完整链路；真实 Adapter 待 M1b。
+- 实现 Anthropic Messages 与 OpenAI-compatible Chat Completions Adapter，在不修改 Agent
+  Runtime 的前提下完成两种 wire protocol 的 ToolCall/ToolResult 往返。
+- 以显式 SSE 状态机聚合并行工具参数分片，缓存稀疏 `id/name` 元数据，在完整终止协议
+  和 JSON 校验通过后才生成 `ResponseCompleted`。
+- 构建安全 Provider HTTP 边界，通过超时、响应大小上限、URL/header 校验、client
+  ownership 与静态公开错误防止泄密、无界响应和资源泄漏。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
 - 建立 Ruff、严格 Pyright、Pytest 覆盖率门槛和哈希约束构建，本地 73 项测试通过、1 项因 Windows symlink 权限跳过，分支覆盖率 95.82%。
 - 对 wheel 与 sdist 分别执行隔离安装和真实 console-script smoke，并通过 `py.typed` 发布内联类型信息。

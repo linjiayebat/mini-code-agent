@@ -4,7 +4,7 @@
 |---|---|---|
 | L0 Python engineering foundation | Complete locally | Ruff、Pyright、25 passed、build、CLI doctor |
 | L1 Agent Loop | Complete locally | 27 Runtime tests + deterministic ToolCall integration |
-| L2 Provider and Tool Calling | In progress | Contracts and Fake Provider complete; real adapters pending |
+| L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 112 focused contracts collected |
 | L3 Tool Registry | Not started | |
 | L4 Workspace and Policy | Not started | |
 | L5 File/Edit/Shell/Git tools | Not started | |
@@ -84,4 +84,49 @@
 - Ruff format/check and strict Pyright: passed.
 - Hashed build plus isolated wheel/sdist console-script smoke: passed.
 - Bandit source scan: no findings; pip-audit locked runtime dependencies: no known vulnerabilities.
-- Real Anthropic and OpenAI-compatible adapters: not implemented; scheduled for M1b.
+- Real Anthropic and OpenAI-compatible adapters were intentionally deferred to M1b.
+
+## M1b Provider Notes
+
+- Anthropic and OpenAI-compatible use the same domain contract but different wire contracts.
+  The Adapter is an anti-corruption layer, not a conditional branch in Agent Runtime.
+- Anthropic puts `tool_use` and `tool_result` inside ordered content blocks. OpenAI-compatible
+  Chat Completions uses assistant `tool_calls` plus separate `tool` role messages.
+- Both providers stream tool arguments as partial JSON. The parser emits safe metadata-bearing
+  deltas but waits for the terminal lifecycle before parsing a complete JSON object.
+- OpenAI tool chunks are sparse: only the first chunk normally carries `id` and `name`.
+  Per-index state makes later arguments fragments attributable and detects metadata changes.
+- HTTPX async context managers guarantee response cleanup. The Adapter closes only internally
+  created clients; injected clients are caller-owned.
+- Public provider errors contain a normalized code, retryability, and a static message. Raw
+  bodies, exception strings, payloads, and API keys stay behind the boundary.
+- 401/403 are non-retryable authentication errors; 429, timeouts, and transient server/network
+  failures are retryable classifications. The Adapter does not perform retries.
+- Body and cumulative SSE data limits stop memory growth before parsing. Base URL and endpoint
+  validation prevent credentials, query strings, fragments, traversal, and absolute endpoint
+  substitution.
+- `httpx.MockTransport` provides deterministic protocol tests without network access or secrets.
+  It proves conversion and failure behavior, not live account availability.
+- Chat Completions is the explicit compatibility profile. OpenAI Responses will be a separate
+  future Adapter because its state and semantic event model differ.
+
+## M1b Learning Exercises
+
+1. Trace the two interleaved tool calls in
+   `tests/unit/providers/test_openai_compatible.py` and record state by tool index.
+2. Explain why Anthropic `tool_result` blocks must be moved before text in a mixed user message.
+3. Add a malformed SSE lifecycle case as a failing test, then identify which invariant rejects it.
+4. Compare `ProviderError.retryable` with Flink restart strategy: classification is input to a
+   policy, not the retry policy itself.
+5. Explain why a live API smoke test and a MockTransport contract test prove different things.
+
+## M1b Local Verification
+
+- Implemented programmatic Anthropic Messages and OpenAI-compatible Chat Completions adapters.
+- Implemented non-streaming and SSE text/tool-call paths, usage and request-ID normalization.
+- Provider-focused suite: 112 tests collected across shared transport, both adapters, Fake
+  Provider, and cross-adapter integration contracts.
+- The same unchanged `AgentRuntime` completes a real-wire-format ToolCall round trip through
+  either adapter using credential-free mock HTTP responses.
+- Full repository quality, security, build, and release evidence is recorded after the M1b final
+  gate; no live provider credential test has been claimed.

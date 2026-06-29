@@ -163,23 +163,60 @@
 - Capability：工具、流式、并行调用和 usage。
 - ToolCall ID 必须关联调用与结果。
 - Retry 只适用于可重试且满足幂等约束的操作。
+- Adapter 是防腐层：Agent Core 不应该知道 `tool_use`、`tool_calls` 或 SSE 厂商事件名。
+- 流式输出不是“不断返回字符串”，而是带生命周期、索引、终止原因和 usage 的协议。
+- Tool arguments 在流中只是 JSON 片段；只有终止后组成完整对象才能执行。
 
 **Python**
 
-- `Protocol`、适配器、泛型。
-- HTTP/SDK 异步调用和流式迭代。
+- `Protocol` 对应 Java interface，但使用结构化子类型，不要求显式 `implements`。
+- `async def` + `yield` 产生异步生成器，对应带背压消费语义的简化 Reactive Stream。
+- `async with` 管理 HTTP response/SSE/client 生命周期，对应 Java `try-with-resources`。
+- `dataclass(slots=True)` 保存流解析状态，Pydantic 在不可信 wire boundary 做运行时校验。
+- 依赖注入 `httpx.AsyncClient` 与 `MockTransport`，对应注入 HTTP client 并使用 mock server。
+- 判别联合、`Literal`、类型收窄和严格 Pyright 保证不同事件分支完整处理。
 
 **工程**
 
-- Anthropic 与 OpenAI-compatible 消息转换。
+- Anthropic：system 位于顶层，工具调用/结果是 assistant/user content block。
+- OpenAI-compatible：system 是消息，工具调用位于 assistant，结果使用独立 `tool` role。
+- Anthropic 流按 content index 管理 block start/delta/stop；OpenAI 流按 tool index 缓存
+  首块 `id/name`，后续块只追加 arguments。
 - 认证、限流、超时、协议和服务端错误分类。
-- 原始响应脱敏和大小限制。
+- 原始响应脱敏、请求 ID 截断、HTTP body/SSE 累计大小限制。
+- Client ownership：内部 client 由 Adapter 关闭，外部注入 client 由调用方关闭。
+- Adapter 只分类错误，不自动重试；重试次数、退避、总耗时和模型成本由编排层控制。
 
 **验收练习**
 
 - 同一 Agent Loop 无修改切换两个 Provider。
 - 契约测试验证两种适配器输出相同领域事件。
 - 模拟限流、超时和畸形响应。
+- 手工跟踪两个并行 OpenAI tool call 的交错 arguments 分片，写出每一步 parser state。
+- 将 401、429、504、网络断开和非法 JSON 分别映射成公开错误码与 retryable 值。
+- 解释为什么不能在收到第一个 JSON 参数片段后立即执行工具。
+- 解释为什么 OpenAI Responses API 应做成独立 Adapter，而不是塞进 Chat Completions
+  Adapter 的条件分支。
+
+**M1b 代码阅读顺序**
+
+1. `providers/base.py`：先看 Provider-neutral 输入输出合同。
+2. `providers/http.py`：理解资源、大小、超时和公开错误边界。
+3. `providers/anthropic.py`：跟踪 content block 状态机。
+4. `providers/openai_compatible.py`：跟踪稀疏 tool-call chunk 聚合。
+5. `tests/integration/test_provider_contract.py`：验证同一 Agent Loop 的可替换性。
+
+**Java/Flink 迁移类比**
+
+| 现有经验 | Agent Provider 对应概念 |
+|---|---|
+| Java interface + Adapter | Python `Protocol` + Provider Adapter |
+| Jackson DTO / Bean Validation | Pydantic wire/domain validation |
+| WebClient streaming body | HTTPX async stream + SSE async iterator |
+| Flink keyed state | 按 content/tool index 保存流解析状态 |
+| watermark/terminal signal | `message_stop` 或 `[DONE]` |
+| side output/error classification | 标准化 `ProviderErrorCode` |
+| Exactly-once correlation key | ToolCall ID 与 ToolResult ID |
 
 ### L3：Tool Registry 与参数校验
 
@@ -508,4 +545,3 @@
 - Windows/Linux 差异已验证或明确记录。
 
 最终目标不是功能最多，而是行为可预测、权限可控制、状态可恢复、过程可追踪、扩展边界清晰。
-
