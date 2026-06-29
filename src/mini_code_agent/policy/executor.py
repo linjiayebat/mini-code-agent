@@ -81,6 +81,8 @@ class GovernedToolExecutor:
         if policy_result.decision is PolicyDecision.DENY:
             return self._permission_denied(call.id)
         if policy_result.decision is PolicyDecision.ASK:
+            if self._session_mode is SessionMode.NON_INTERACTIVE:
+                return self._permission_denied(call.id)
             try:
                 approved = await self._approval.approve(
                     ApprovalRequest(

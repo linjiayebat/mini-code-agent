@@ -76,6 +76,7 @@ class ActionPreview(BaseModel):
     side_effect: SideEffect
     risk: RiskLevel
     summary: str = Field(min_length=1, max_length=500)
+    reason: str = Field(default="No reason provided.", min_length=1, max_length=500)
     resources: tuple[ResourcePath, ...] = Field(default=(), max_length=32)
     diff: str | None = Field(default=None, max_length=32_768)
 

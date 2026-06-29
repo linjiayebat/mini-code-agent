@@ -189,8 +189,10 @@ async def test_ask_dispatches_only_after_explicit_approval(approved: bool) -> No
 @pytest.mark.asyncio
 async def test_non_interactive_ask_is_denied() -> None:
     tool = RecordingTool(name="write_file", side_effect=SideEffect.WRITE)
+    approval = StaticApprovalHandler(approved=True)
     executor = executor_for(
         tool,
+        approval=approval,
         session_mode=SessionMode.NON_INTERACTIVE,
     )
 
@@ -198,6 +200,7 @@ async def test_non_interactive_ask_is_denied() -> None:
 
     assert error_code(result) == "permission_denied"
     assert tool.calls == []
+    assert approval.requests == []
 
 
 @pytest.mark.asyncio

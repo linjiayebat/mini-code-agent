@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -211,6 +212,7 @@ def test_read_text_returns_safe_metadata_and_unicode(tmp_path: Path) -> None:
         text="first\n中文\n",
         byte_count=len("first\n中文\n".encode()),
         line_count=2,
+        sha256=hashlib.sha256("first\n中文\n".encode()).hexdigest(),
     )
     assert str(tmp_path.resolve()) not in result.model_dump_json()
 

@@ -99,6 +99,7 @@ class ReadFileTool:
             "content": "".join(selected),
             "end_line": end_line,
             "path": source.path,
+            "sha256": source.sha256,
             "start_line": arguments.start_line,
             "total_lines": source.line_count,
             "truncated": arguments.start_line > 1 or end_line < source.line_count,

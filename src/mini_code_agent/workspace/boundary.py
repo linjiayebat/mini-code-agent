@@ -169,6 +169,7 @@ class WorkspaceBoundary:
             text=text,
             byte_count=len(content),
             line_count=len(text.splitlines()),
+            sha256=_sha256(content),
         )
 
     def list_files(

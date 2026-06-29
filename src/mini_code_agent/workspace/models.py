@@ -32,6 +32,7 @@ class WorkspaceTextFile(BaseModel):
     text: str
     byte_count: int = Field(ge=0, le=16 * 1024 * 1024)
     line_count: int = Field(ge=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class MutationPreview(BaseModel):

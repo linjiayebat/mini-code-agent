@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -57,6 +58,7 @@ async def test_read_file_returns_complete_structured_content(tmp_path: Path) -> 
         "content": "first\n中文\n",
         "end_line": 2,
         "path": "hello.txt",
+        "sha256": hashlib.sha256("first\n中文\n".encode()).hexdigest(),
         "start_line": 1,
         "total_lines": 2,
         "truncated": False,
@@ -87,6 +89,7 @@ async def test_read_file_returns_line_window_without_normalizing_endings(
         "content": "two\r\nthree\r\n",
         "end_line": 3,
         "path": "lines.txt",
+        "sha256": hashlib.sha256(b"one\r\ntwo\r\nthree\r\nfour\r\n").hexdigest(),
         "start_line": 2,
         "total_lines": 4,
         "truncated": True,
@@ -116,6 +119,7 @@ async def test_read_file_handles_empty_and_past_eof(tmp_path: Path) -> None:
         "content": "",
         "end_line": 1,
         "path": "short.txt",
+        "sha256": hashlib.sha256(b"only\n").hexdigest(),
         "start_line": 10,
         "total_lines": 1,
         "truncated": True,
