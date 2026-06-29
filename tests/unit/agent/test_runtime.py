@@ -109,6 +109,18 @@ class WriteTool(RuntimeInfoTool):
         )
 
 
+class GovernedWriteTool(WriteTool):
+    @property
+    def governance_enforced(self) -> bool:
+        return True
+
+
+class TruthyMarkerWriteTool(WriteTool):
+    @property
+    def governance_enforced(self) -> str:
+        return "true"
+
+
 class FailingEventSink:
     def __init__(self, fail_type: type[object]) -> None:
         self._fail_type = fail_type
@@ -474,9 +486,26 @@ async def test_over_budget_batch_executes_nothing() -> None:
     assert tools.calls == []
 
 
-def test_runtime_rejects_non_read_only_tools() -> None:
-    with pytest.raises(ValueError, match="M1 only permits read-only tools"):
+def test_runtime_rejects_ungoverned_side_effecting_tools() -> None:
+    with pytest.raises(ValueError, match="require governed execution"):
         AgentRuntime(ScriptedProvider([final_response("done")]), WriteTool())
+
+
+def test_runtime_rejects_non_boolean_governance_marker() -> None:
+    with pytest.raises(ValueError, match="require governed execution"):
+        AgentRuntime(
+            ScriptedProvider([final_response("done")]),
+            TruthyMarkerWriteTool(),
+        )
+
+
+def test_runtime_accepts_governed_side_effecting_tools() -> None:
+    runtime = AgentRuntime(
+        ScriptedProvider([final_response("done")]),
+        GovernedWriteTool(),
+    )
+
+    assert runtime is not None
 
 
 @pytest.mark.asyncio

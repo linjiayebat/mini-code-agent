@@ -47,8 +47,11 @@ class AgentRuntime:
         names = tuple(definition.name for definition in definitions)
         if len(set(names)) != len(names):
             raise ValueError("Tool definitions must have unique names.")
-        if any(definition.side_effect is not SideEffect.READ_ONLY for definition in definitions):
-            raise ValueError("M1 only permits read-only tools.")
+        has_side_effects = any(
+            definition.side_effect is not SideEffect.READ_ONLY for definition in definitions
+        )
+        if has_side_effects and getattr(tools, "governance_enforced", None) is not True:
+            raise ValueError("Side-effecting tools require governed execution.")
         self._definitions = definitions
         self._tool_names = frozenset(names)
 
