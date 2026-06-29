@@ -4,6 +4,24 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+## [0.7.0-alpha.0] - 2026-06-29
+
+### Added
+
+- Deterministic provider-neutral context estimator with configurable output reserve.
+- Atomic ToolCall/ToolResult history selection and bounded omission markers.
+- Typed `ContextCompacted` events with before/after estimates, omitted counts, and transcript
+  fingerprints.
+- `CONTEXT_LIMIT` runtime stop before provider I/O when required context cannot fit.
+
+### Security
+
+- Completed side-effecting, mixed, and unknown-tool exchanges stay pinned during compaction.
+- Pinned-history overflow fails closed instead of erasing action evidence.
+- Omission markers, events, and public errors do not copy raw omitted transcript content.
+- Transcript fingerprints are documented as evidence identifiers, not secret protection or
+  durable replay prevention.
+
 ## [0.6.0-alpha.0] - 2026-06-29
 
 ### Added

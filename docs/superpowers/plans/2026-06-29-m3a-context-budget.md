@@ -7,8 +7,9 @@ selection while preserving the full runtime transcript and emitting auditable co
 
 **Architecture:** A pure `ContextManager` groups full transcript messages into indivisible
 interaction units, pins the original goal and latest completed unit, then retains a contiguous
-recent suffix under a configurable estimated budget. `AgentRuntime` calls it before every
-provider request and maps typed failures to `CONTEXT_LIMIT`.
+recent read-only suffix plus all side-effecting or unknown-tool exchanges under a configurable
+estimated budget. `AgentRuntime` calls it before every provider request and maps typed failures
+to `CONTEXT_LIMIT`.
 
 **Tech Stack:** Python 3.12/3.13, Pydantic v2, SHA-256, canonical JSON, `Protocol`, Pytest,
 strict Pyright.
@@ -22,11 +23,12 @@ strict Pyright.
 3. ToolCall and matching ToolResult batches are selected or omitted together.
 4. Selected optional history is one contiguous newest suffix in original order.
 5. Latest completed interaction is required after the pinned goal.
-6. Estimated prepared request never exceeds `max_input - reserved_output`.
-7. Full transcript remains in `AgentResult`.
-8. Marker/event/error never contains omitted raw content.
-9. Malformed transcript and fixed-content overflow call no provider.
-10. Estimation is explicitly conservative/provider-neutral, not claimed exact.
+6. Side-effecting and unknown-tool exchanges are pinned and never silently omitted.
+7. Estimated prepared request never exceeds `max_input - reserved_output`.
+8. Full transcript remains in `AgentResult`.
+9. Marker/event/error never contains omitted raw content.
+10. Malformed transcript and fixed-content overflow call no provider.
+11. Estimation is explicitly conservative/provider-neutral, not claimed exact.
 
 ## File Map
 
@@ -43,9 +45,9 @@ strict Pyright.
 
 ## Task 1: Context Limits and Deterministic Estimator
 
-- [ ] Add failing tests for limits, immutability, canonical ordering, Unicode, ToolCall JSON, and
+- [x] Add failing tests for limits, immutability, canonical ordering, Unicode, ToolCall JSON, and
   tool-schema growth.
-- [ ] Define:
+- [x] Define:
 
 ```python
 class ContextLimits(BaseModel):
@@ -60,7 +62,7 @@ class ContextLimits(BaseModel):
         return self
 ```
 
-- [ ] Define `TokenEstimator`:
+- [x] Define `TokenEstimator`:
 
 ```python
 class TokenEstimator(Protocol):
@@ -73,10 +75,10 @@ class TokenEstimator(Protocol):
     ) -> int: ...
 ```
 
-- [ ] Implement `Utf8TokenEstimator` by serializing one canonical compact JSON object with sorted
+- [x] Implement `Utf8TokenEstimator` by serializing one canonical compact JSON object with sorted
   keys and returning UTF-8 byte length plus fixed request/message framing overhead. This is a
   conservative upper-bound heuristic, not vendor tokenization.
-- [ ] Run focused tests, Ruff, Pyright; commit:
+- [x] Run focused tests, Ruff, Pyright; commit:
 
 ```powershell
 git commit -m "feat: estimate bounded model context"
@@ -84,11 +86,11 @@ git commit -m "feat: estimate bounded model context"
 
 ## Task 2: Transcript Grouping and Validation
 
-- [ ] Add failing tests for first-user requirement, valid parallel ToolCall/ToolResult pairs,
+- [x] Add failing tests for first-user requirement, valid parallel ToolCall/ToolResult pairs,
   missing result, orphan result, mismatched IDs, duplicate IDs, standalone text, and stable unit
   ordering.
-- [ ] Implement private immutable `_ContextUnit` with messages and `tool_exchange`.
-- [ ] Group from message index 1:
+- [x] Implement private immutable `_ContextUnit` with messages, `tool_exchange`, and `pinned`.
+- [x] Group from message index 1:
 
 ```python
 if message.tool_calls:
@@ -99,9 +101,11 @@ if message.tool_calls:
         raise ContextError(ContextErrorCode.INVALID_TRANSCRIPT, ...)
 ```
 
-- [ ] Reject ToolResult-only units and assistant ToolCalls without the immediately following
+- [x] Reject ToolResult-only units and assistant ToolCalls without the immediately following
   result batch. Keep standalone non-tool messages as one-message units.
-- [ ] Prove no error text contains message content or IDs; commit:
+- [x] Classify only all-`READ_ONLY` exchanges as optional; pin side-effecting, mixed, and unknown
+  exchanges.
+- [x] Prove no error text contains message content or IDs; commit:
 
 ```powershell
 git commit -m "feat: group atomic context exchanges"
@@ -109,27 +113,27 @@ git commit -m "feat: group atomic context exchanges"
 
 ## Task 3: Deterministic Context Window
 
-- [ ] Add failing exact-boundary tests using a deterministic fake estimator.
-- [ ] Define immutable `ContextWindow` fields: system prompt, selected messages, before/after
+- [x] Add failing exact-boundary tests using a deterministic fake estimator.
+- [x] Define immutable `ContextWindow` fields: system prompt, selected messages, before/after
   estimate, omitted messages/exchanges, transcript fingerprint, and `compacted`.
-- [ ] Canonically hash the complete transcript with sorted compact JSON and SHA-256.
-- [ ] Implement selection:
+- [x] Canonically hash the complete transcript with sorted compact JSON and SHA-256.
+- [x] Implement selection:
 
 ```text
 if full request fits -> return unchanged
 pin first user goal
-require newest unit
+require newest unit and every pinned side-effect/unknown-tool unit
 build bounded marker from omitted counts + fingerprint
-walk older units newest-to-oldest
+walk older optional units newest-to-oldest
 keep adding only while the complete candidate fits
-emit pinned goal + retained contiguous suffix in original order
+emit pinned goal + required units + retained optional suffix in original order
 ```
 
-- [ ] Distinguish fixed prompt/tools/goal overflow from latest-unit overflow with typed codes.
-- [ ] Re-estimate the final candidate and fail closed if it exceeds the usable budget.
-- [ ] Parametrize budgets around `N-1/N/N+1`; prove marker bounds, no raw omitted content, stable
+- [x] Distinguish fixed prompt/tools/goal, latest-unit, and pinned-history overflow with typed codes.
+- [x] Re-estimate the final candidate and fail closed if it exceeds the usable budget.
+- [x] Parametrize budgets around `N-1/N/N+1`; prove marker bounds, no raw omitted content, stable
   fingerprint, and deterministic repeated results.
-- [ ] Commit:
+- [x] Commit:
 
 ```powershell
 git commit -m "feat: compact context deterministically"
@@ -137,8 +141,8 @@ git commit -m "feat: compact context deterministically"
 
 ## Task 4: Typed Compaction Event
 
-- [ ] Add event-model tests for bounds, immutability, serialization, and `AgentEvent` union.
-- [ ] Add:
+- [x] Add event-model tests for bounds, immutability, serialization, and `AgentEvent` union.
+- [x] Add:
 
 ```python
 class ContextCompacted(EventBase):
@@ -151,7 +155,7 @@ class ContextCompacted(EventBase):
     transcript_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 ```
 
-- [ ] Export it through `AgentEvent`; run tests and commit:
+- [x] Export it through `AgentEvent`; run tests and commit:
 
 ```powershell
 git commit -m "feat: record context compaction events"
@@ -159,12 +163,12 @@ git commit -m "feat: record context compaction events"
 
 ## Task 5: Agent Runtime Integration
 
-- [ ] Add failing runtime tests proving manager invocation on every turn, provider request
+- [x] Add failing runtime tests proving manager invocation on every turn, provider request
   selection, one event per compacted request, full `AgentResult.messages`, and sink isolation.
-- [ ] Add `StopReason.CONTEXT_LIMIT` and tests for typed error, unexpected manager exception, and
+- [x] Add `StopReason.CONTEXT_LIMIT` and tests for typed error, unexpected manager exception, and
   invalid manager return. All stop before the next provider call and expose static text only.
-- [ ] Inject `context: ContextPreparer | None`; default to bounded `ContextManager`.
-- [ ] Before `ModelRequest`, prepare:
+- [x] Inject `context: ContextPreparer | None`; default to bounded `ContextManager`.
+- [x] Before `ModelRequest`, prepare:
 
 ```python
 try:
@@ -177,11 +181,11 @@ except ContextError:
     return self._stop(..., StopReason.CONTEXT_LIMIT, ..., "Model context limit exceeded.")
 ```
 
-- [ ] Validate the candidate is a `ContextWindow`, publish `ContextCompacted` when compacted, and
+- [x] Validate the candidate is a `ContextWindow`, publish `ContextCompacted` when compacted, and
   build the request from its prompt/messages.
-- [ ] Add integration test with large deterministic ToolResults showing provider sees an atomic
+- [x] Add integration test with large deterministic ToolResults showing provider sees an atomic
   suffix while result retains full history.
-- [ ] Run all Agent/Provider integration tests and commit:
+- [x] Run all Agent/Provider integration tests and commit:
 
 ```powershell
 git commit -m "feat: enforce agent context budgets"

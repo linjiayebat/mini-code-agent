@@ -2,10 +2,10 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M2c provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M3a provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
-> Read/Search, conflict-aware Write/Edit, and policy-governed argv command execution. Shell-string
-> execution, persistence, and live-provider CI are not implemented.
+> Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
+> context admission. Shell-string execution, persistence, and live-provider CI are not implemented.
 
 ## Requirements
 
@@ -104,6 +104,17 @@ time/output, and cleans process trees on timeout, overflow, or cancellation.
 This is local process lifecycle control, not an OS sandbox. See
 `docs/architecture/governed-command-execution.md`.
 
+## Context Budget
+
+Every provider request is estimated before network I/O. Compaction keeps the original goal,
+newest completed unit, and all side-effecting or unknown-tool exchanges; ToolCall and ToolResult
+batches remain atomic. Older read-only history may be omitted with bounded count/fingerprint
+evidence. If required history cannot fit, the run stops without calling the provider.
+
+The default UTF-8 estimator is deterministic and provider-neutral, not an exact vendor tokenizer.
+M3a is not durable memory or crash-safe replay prevention. See
+`docs/architecture/context-budget.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -115,11 +126,13 @@ This is local process lifecycle control, not an OS sandbox. See
 - Read-only tools: `docs/architecture/readonly-tools.md`
 - Governed writes: `docs/architecture/governed-writes.md`
 - Governed commands: `docs/architecture/governed-command-execution.md`
+- Context budget: `docs/architecture/context-budget.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
 - Governed file writes ADR: `docs/adr/0004-governed-file-writes.md`
 - Argv command runner ADR: `docs/adr/0005-argv-command-runner.md`
+- Context budget ADR: `docs/adr/0006-deterministic-context-budget.md`
 
 ## License
 

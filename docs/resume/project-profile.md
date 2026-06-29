@@ -1,16 +1,17 @@
 # Mini CodeAgent 简历项目包
 
 > 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider、M2a 只读 Workspace/Tool
-> Registry、M2b 受治理文件写入与 M2c argv 命令执行已在本地完成；Shell 字符串、
-> OS 沙箱、真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
+> Registry、M2b 受治理文件写入、M2c argv 命令执行与 M3a 确定性 Context Budget
+> 已在本地完成；持久化 Session/Checkpoint、Shell 字符串、OS 沙箱、真实凭证联调、
+> 远程 CI 和 GitHub Release 尚未执行。
 >
 > 本文中的功能、性能和指标是目标或验收方案。只有得到代码、测试、CI、Benchmark 或 Release 证据后，才能改写为已完成成果。
 
 ## 1. 30 秒项目介绍
 
-正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、哈希防冲突 Write/Edit 和受治理 argv Command 组成的代码理解、修改与验证链路。
+正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、哈希防冲突 Write/Edit 和受治理 argv Command 组成的代码理解、修改与验证链路；每次模型调用前还通过确定性请求预算、ToolCall/ToolResult 原子选择、副作用历史固定和类型化压缩事件限制上下文。
 
-规划能力包括可解释 Agent Loop、强类型 Tool Registry、安全 Workspace、allow/ask/deny 权限决策、文件编辑与 Shell 工具、Context Budget 与压缩、Session/Checkpoint/Resume、结构化 Trace，以及 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
+规划能力包括 Session/Checkpoint/Resume、持久化 Trace，以及 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
 
 ## 2. 项目定位
 
@@ -25,9 +26,10 @@
 
 最终技术栈以 `pyproject.toml`、ADR 和发布版本为准。
 
-M0/M1/M1b/M2a/M2b/M2c 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
+M0/M1/M1b/M2a/M2b/M2c/M3a 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
 Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
-JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
+JSON Schema Draft 2020-12、canonical JSON、SHA-256、Pytest、pytest-asyncio、Coverage、Ruff
+与 Pyright；其余技术随对应里程碑落地。
 
 | 分类 | 技术 |
 |---|---|
@@ -54,7 +56,7 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 4. 安全 Workspace 与路径边界。
 5. allow/ask/deny 权限决策系统。
 6. 跨平台文件编辑与受治理 argv 命令执行。
-7. Context Budget 与可恢复压缩。
+7. 确定性 Context Budget 与副作用历史固定。
 8. Session、Checkpoint 与 Resume。
 9. 结构化 Trace 与可观测性。
 10. Git、测试、诊断、修复闭环。
@@ -76,7 +78,7 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 | 防冲突 Write/Edit | Agent 基于旧上下文写文件会覆盖用户或其他进程的新修改 | `read_file` 原始字节 SHA-256、乐观并发前置条件、create-only、唯一 literal match、审批后重复校验 | 创建新文件、哈希匹配替换、精确单点编辑并返回前后哈希和 diff | 将静默覆盖转化为可重试 `conflict`，拒绝零匹配、多匹配和 no-op 编辑 | 32 项相关单测与 3 项真实 Agent 治理写入集成测试通过 |
 | 原子文件发布 | 写盘中断可能留下半个源文件，审批界面也不能展示无界内容 | 同目录 `NamedTemporaryFile`、flush/`fsync`、权限位保留、`os.link`/`os.replace`、失败清理、32 KiB diff 上限 | 成功时一次发布完整内容，失败时保留原文件并清理临时文件 | 避免部分写入和临时文件泄漏，控制审批与 ToolResult 体积 | 故障注入、陈旧哈希、大小/NUL/编码、diff 截断和原文件不变测试 |
 | 受治理 argv 命令执行 | 测试/构建需要启动进程，但 shell 字符串带来插值注入、平台转义和失控子进程风险 | `create_subprocess_exec`、critical preview、execute 默认 deny、`executable_glob`、Workspace cwd、最小环境、POSIX process group、Windows `taskkill /T /F` | 经显式规则和交互审批运行 argv 命令，返回 exit/stdout/stderr/timeout/overflow，并在取消前清理进程树 | 去除 `shell=True` 解析面，避免 API Key 环境继承、无界输出、超时后父子进程残留和 pipe 死锁 | 29 项 Command 单测、7 项 Tool 单测、4 项 Agent 治理集成测试；父子心跳、异常读取和非交互零执行均覆盖 |
-| Context Budget | 长任务会超过上下文窗口，直接截断会丢关键事实 | token estimator、消息优先级、滚动摘要、工具输出落盘 | 预算预估、压缩、保留任务目标和未完成项 | 降低上下文超限和无效 token 消耗 | 压缩前后 token、关键信息 golden test |
+| 确定性 Context Budget | 长任务会超过上下文窗口；直接截断可能拆开调用/结果，或抹掉已完成写操作并诱发重复副作用 | `TokenEstimator` Protocol、canonical JSON UTF-8 估算、Pydantic 预算、原子 ToolCall/ToolResult、只读最近后缀、副作用/未知工具固定、SHA-256 标记、类型化事件 | 每次 Provider I/O 前构造有界 `ContextWindow`；完整 transcript 留在 Runtime，Provider 只看选中历史；固定内容无法容纳时 fail closed | 避免半个工具交换、无界请求、原始省略内容泄漏和因遗忘副作用导致的重复动作；不依赖模型生成摘要 | 18 项 Context 单测、77 项 Context/Runtime/集成测试通过；覆盖 609/610/611 边界、副作用与未知工具固定、零 Provider I/O 失败路径 |
 | Checkpoint/Resume | 网络错误、进程退出和人工中断不应导致全部重跑 | SQLite、版本化 Schema、原子快照、幂等恢复 | 保存会话状态并从中断点继续 | 提高长任务容错和问题复现能力 | 故障注入场景、恢复成功率和耗时待回填 |
 | 结构化 Trace | 文本日志无法回答 Agent 为什么执行某动作 | 类型化事件、correlation ID、耗时、usage、JSONL、脱敏 | 记录模型、工具、权限、压缩、恢复和错误事件 | 支持调试、审计、成本分析和行为评估 | Trace Schema 覆盖、解析测试、脱敏测试 |
 | Git/test/repair loop | 文件写完不等于任务完成 | Git status/diff、测试发现、诊断解析、有限重试 | 修改后运行验证，将失败反馈给 Agent 修复 | 建立修改、验证、修复、再验证闭环 | 首次通过率、修复后通过率、平均修复轮次 |
@@ -121,7 +123,11 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 
 ### 7.5 Context 压缩策略
 
-“压缩不能简单删除最早消息。我会区分稳定指令、用户目标、工作记忆、最近工具结果和历史细节，按优先级保留。压缩事件写入 Trace，并通过 golden test 验证关键事实未丢失。”
+“M3a 把上下文管理实现为每次 Provider I/O 前的确定性准入控制，而不是让模型生成摘要。
+System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolResult 作为原子单元，始终
+保留用户目标、最新单元以及写入/执行/网络和未知工具历史，只淘汰较旧的纯只读单元。
+如果固定历史仍无法容纳就失败关闭。省略事件记录计数和 transcript 指纹，但不声称能恢复
+被省略事实，也不把启发式 UTF-8 估算写成精确 token 或节省率。”
 
 ### 7.6 Checkpoint 与 Resume
 
@@ -165,6 +171,11 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
   校验和同目录原子替换，将陈旧修改从静默覆盖转化为无副作用 `conflict`。
 - 实现 argv-only 受治理命令执行器，以最小环境、Workspace cwd、合并输出预算、超时/
   取消和跨平台进程树清理支撑测试构建；默认 deny，显式规则和交互审批后才启动进程。
+- 实现确定性 Context Budget，在每次 Provider I/O 前估算完整请求，将 ToolCall/ToolResult
+  作为不可拆分单元，保留原始目标、最新单元和所有副作用/未知工具交换，只淘汰较旧只读历史；
+  超限时静态失败且不调用 Provider。
+- 以有界 `ContextCompacted` 事件和完整 transcript SHA-256 记录省略证据，Runtime 继续持有
+  全量消息，Provider 只接收选中窗口；不生成不可验证的滚动摘要。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
 - 建立 Ruff、严格 Pyright、Pytest 覆盖率门槛和哈希约束构建，Python 3.12/3.13
   各 395 项通过、3 项因 Windows symlink 权限跳过，分支覆盖率 89.73%。
@@ -173,7 +184,7 @@ JSON Schema Draft 2020-12、Pytest、pytest-asyncio、Coverage、Ruff 与 Pyrigh
 - 对 wheel 与 sdist 分别执行隔离安装和真实 console-script smoke，并通过 `py.typed` 发布内联类型信息。
 - 设计 Framework-light、Provider-neutral 的 Python Mini CodeAgent，完成 Agent Loop、工具协议、安全 Workspace、权限模型和可恢复执行方案。
 - 为 Windows/Linux、严格类型、自动化测试、结构化 Trace 和 SemVer 发布定义工程验收标准。
-- 建立覆盖路径逃逸、权限拒绝、上下文压缩、故障恢复和修复闭环的验证计划。
+- 建立覆盖路径逃逸、权限拒绝、上下文预算、故障恢复和修复闭环的验证计划。
 
 ### 8.2 发布后
 

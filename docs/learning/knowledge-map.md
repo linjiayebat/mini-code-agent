@@ -356,26 +356,54 @@
 
 **理论**
 
-- 上下文管理是信息保留问题，不只是删除旧消息。
-- 区分稳定指令、目标、工作记忆、工具结果和历史。
-- 压缩是有损操作，必须保存来源和版本。
+- 上下文管理首先是请求准入控制，其次才是语义压缩。
+- System Prompt、Tool Schema、消息和预留输出共同占用预算。
+- ToolCall 与对应 ToolResult 是关联原子单元，不能截断其中一半。
+- 已完成副作用如果从上下文消失，模型可能用新 ID 重复执行，因此必须固定保留。
+- 压缩是有损操作；静态省略标记只能证明发生过省略，不能恢复事实。
 
 **Python**
 
-- token 估算接口、滑动窗口、优先级。
-- 结构化摘要校验。
+- `Protocol` 定义可替换 estimator，Pydantic 冻结预算和窗口 DTO。
+- canonical JSON、UTF-8 字节估算、SHA-256 指纹。
+- 不可变原子单元、稳定顺序、确定性窗口选择。
 
 **工程**
 
-- 预留模型输出和 ToolCall 空间。
-- 大型工具输出先裁剪、提取或落盘。
-- 压缩失败使用保守降级。
+- 每次 Provider I/O 前统一估算，预留模型输出空间。
+- 完整请求可容纳时不改写；超限时保留用户目标、最新单元和所有副作用/未知工具交换。
+- 只有纯只读工具交换和普通消息可进入最近后缀淘汰。
+- 省略标记只包含消息数、交换数和完整 transcript 指纹，不复制原文。
+- 固定内容、最新单元或固定历史无法容纳时 fail closed，不盲目重试 Provider。
+- M3a 不生成滚动摘要、不落盘工具输出、不提供 durable memory；这些需要后续 Trace。
 
 **验收练习**
 
-- 构造超长会话触发压缩。
-- 压缩后保留目标、限制、未完成项和验证结果。
-- Trace 说明删除、保留和压缩了什么。
+- 手算 609/610/611 三个边界预算，解释为什么保留的只读交换数不同。
+- 构造“写操作 -> 旧只读 -> 最新只读”，证明压缩后写操作仍在原位置。
+- 删除当前工具定义后重放同一 transcript，解释未知工具为什么必须按副作用固定。
+- 对比完整 transcript、Provider 看到的窗口和 `AgentResult`，说明所有权差异。
+- 解释 transcript SHA-256 能证明什么，以及为什么它不是 Secret 保护或 Checkpoint。
+
+**Java/Flink 迁移类比**
+
+| 现有经验 | M3a 对应概念 |
+|---|---|
+| JVM heap/request admission | Provider 调用前的 context preflight |
+| Kafka/Flink 原子记录边界 | ToolCall + ToolResult 不可拆分单元 |
+| Flink state retention | 按副作用分类固定与淘汰历史 |
+| 有界队列/背压 | 超预算时先压缩或拒绝，不向 Provider 盲发 |
+| Checkpoint metadata hash | transcript 指纹仅标识状态，不保存状态本身 |
+
+**M3a 代码阅读顺序**
+
+1. `context/models.py`：预算约束和不可变 `ContextWindow`。
+2. `context/estimator.py`：Provider-neutral 的确定性估算合同。
+3. `context/manager.py`：transcript 校验、原子分组、固定和最近后缀选择。
+4. `agent/events.py`：有界 `ContextCompacted` 证据。
+5. `agent/runtime.py`：Provider I/O 前的统一准入和静态失败映射。
+6. `tests/unit/context/test_manager.py`：边界值、副作用固定和泄密负向测试。
+7. `tests/integration/test_context_budget_agent.py`：完整 transcript 与 Provider 窗口分离。
 
 ### L7：Session、Checkpoint、Resume 与 Trace
 

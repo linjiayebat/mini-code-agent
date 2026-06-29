@@ -8,7 +8,7 @@
 | L3 Tool Registry | Complete locally | Draft 2020-12 validation, dispatch and bounded result contract |
 | L4 Workspace and Policy | Complete locally | WorkspaceBoundary + deterministic Policy + approval governance |
 | L5 File/Edit/Command/Git tools | In progress | Read/Search/Write/Edit/argv Command complete; Git deferred |
-| L6 Context Budget | Not started | |
+| L6 Context Budget | Complete locally | Deterministic estimator, atomic selection, side-effect pinning, runtime integration |
 | L7 Session/Checkpoint/Trace | Not started | |
 | L8 Git/test/repair | Not started | |
 | L9 Skills and Hooks | Not started | |
@@ -287,3 +287,44 @@
 - Package version: `0.6.0a0`; local milestone tag target: `v0.6.0-alpha.0`.
 - Linux process behavior and remote GitHub Actions still require remote evidence; no remote
   result is claimed.
+
+## M3a Deterministic Context Budget Notes
+
+- `ContextManager` is request admission control. `AgentRuntime` still owns the complete in-memory
+  transcript, while each Provider sees only a validated `ContextWindow`.
+- `Utf8TokenEstimator` counts canonical request JSON bytes plus framing. It is deterministic and
+  provider-neutral, but is not an exact tokenizer and does not justify a token-savings claim.
+- The first user goal and newest completed unit are required. ToolCall and ToolResult batches are
+  correlated by ID sets and selected or omitted together.
+- Only all-read-only exchanges are optional. Write, execute, network, mixed, and unknown-tool
+  exchanges are pinned because erasing action evidence can cause a fresh-ID repeat.
+- Optional history is retained as a newest contiguous suffix; pinned exchanges remain in original
+  order even across omitted read-only history.
+- A static omission marker records bounded counts and SHA-256 of the complete canonical
+  transcript. The hash supports identity/equality evidence, not recovery, authentication, or
+  Secret protection.
+- Fixed goal overflow, latest-unit overflow, and pinned-history overflow are distinct internal
+  failures. Runtime exposes one static context-limit message and makes no Provider call.
+- `ContextCompacted` is best-effort observability. Event-sink failure cannot change request
+  selection.
+- M3a has no rolling model summary, artifact externalization, durable Session, or crash recovery.
+
+## M3a Exercises
+
+1. Trace budgets 609, 610, and 611 through `test_compaction_keeps_a_contiguous_recent_suffix_at_boundaries`.
+2. Explain why a completed `write_file` exchange must remain visible even when its ToolCall ID
+   cannot repeat.
+3. Change a historical tool name to one absent from current definitions and explain the fail-safe
+   classification.
+4. Compare the complete `AgentResult.messages` with the third Provider request in the large-result
+   integration test.
+5. Explain why observed Provider usage cannot predict the next request and why the estimator is
+   injected.
+
+## M3a Current Verification
+
+- Context manager unit suite: 18 passed.
+- Context, Runtime, and context integration suite: 77 passed.
+- Ruff and strict Pyright passed after binding Pyright to the worktree Python 3.13 environment.
+- Full dual-Python, coverage, security, build, and artifact smoke evidence is recorded only after
+  the `v0.7.0-alpha.0` release gate completes.

@@ -23,8 +23,9 @@ This specification covers M3a only. It does not claim durable memory or crash re
 
 Keep full in-memory transcript ownership in `AgentRuntime`, but construct each provider request
 through a pure `ContextManager`. Preserve pinned content and newest complete interaction units;
-drop older units newest-first until the configured estimate fits. This is predictable, testable,
-and cannot invent facts.
+drop older read-only units newest-first until the configured estimate fits. Completed
+side-effecting and unknown-tool exchanges stay pinned. This is predictable, testable, and cannot
+invent facts.
 
 ### 2. LLM-generated rolling summary
 
@@ -48,8 +49,9 @@ ContextManager.prepare
     |-- estimate system prompt + tool definitions
     |-- pin first user goal
     |-- group ToolCall + ToolResult atomically
+    |-- pin side-effecting and unknown-tool exchanges
     |-- require newest complete exchange
-    |-- retain newer optional units within budget
+    |-- retain newer optional read-only units within budget
     |-- append static compaction marker metadata
     v
 ContextWindow
@@ -99,12 +101,20 @@ The first user message is always pinned. An assistant message containing ToolCal
 immediately following user ToolResults form one atomic unit. IDs must match as sets in original
 order-independent correlation. A request never contains one side without the other.
 
-Other standalone messages form one-message units. The newest completed unit is required. Older
-units are optional and retained newest-first. Selected units are emitted in original order.
+Tool definitions classify each completed exchange. An exchange is optional only when every call
+is currently defined as `READ_ONLY`. Any write, execute, network, mixed-side-effect, or unknown
+tool exchange is pinned. Unknown tools fail safe because a changed tool registry must not erase
+evidence of an action whose effects cannot be classified.
+
+Other standalone messages form one-message optional units. The newest completed unit is required.
+Older optional units are retained as a newest contiguous suffix; pinned units are included at
+their original positions even when older optional units are omitted. Selected units are emitted
+in original order.
 
 If transcript structure is malformed, fixed content exceeds the usable budget, the newest unit
-cannot fit, or the marker itself prevents a valid window, preparation returns a typed
-`ContextError`. The runtime stops with `StopReason.CONTEXT_LIMIT` before calling the provider.
+cannot fit, required pinned history cannot fit, or the marker itself prevents a valid window,
+preparation returns a typed `ContextError`. The runtime stops with
+`StopReason.CONTEXT_LIMIT` before calling the provider.
 
 ## Compaction Marker and Evidence
 
@@ -115,6 +125,10 @@ When history is omitted, the manager appends a static bounded note to the system
 
 The marker explicitly says details are unavailable and must not be guessed. It does not contain
 raw omitted content, file paths, tool arguments, errors, or secrets.
+
+The fingerprint detects identity/equality of a transcript for evidence and tests. It is not a
+secret-protection mechanism, authentication tag, durable checkpoint, or substitute for retaining
+the omitted content.
 
 `ContextCompacted` event records run ID, turn, before/after estimates, omitted counts, and
 fingerprint. Keeping estimates out of the marker avoids circular re-estimation. Event sink
@@ -146,6 +160,8 @@ tests may inject a custom estimator or manager.
 8. Invalid transcript or fixed-content overflow fails before provider I/O.
 9. Estimates, limits, omitted counts, and marker length are bounded Pydantic fields.
 10. No claim of exact vendor token counting is made.
+11. Completed side-effecting and unknown-tool exchanges are never omitted.
+12. If required pinned history does not fit, selection fails closed instead of dropping it.
 
 ## Error Handling
 
@@ -154,6 +170,7 @@ Typed internal codes:
 - `invalid_transcript`;
 - `fixed_content_too_large`;
 - `latest_exchange_too_large`;
+- `pinned_history_too_large`;
 - `window_build_failed`.
 
 Runtime exposes one static context-limit message and does not leak transcript content or
@@ -163,7 +180,8 @@ estimator exceptions.
 
 Unit tests cover estimator determinism, UTF-8/code/JSON/tool-schema accounting, limits,
 ToolCall/ToolResult grouping, newest-first retention, stable ordering, marker bounds, fingerprint,
-malformed correlation, fixed-content overflow, latest-unit overflow, and no raw-content leakage.
+malformed correlation, fixed-content overflow, latest-unit overflow, side-effect/unknown-tool
+pinning, pinned-history overflow, and no raw-content leakage.
 
 Runtime tests prove every request is prepared, compaction emits one event, full transcript remains
 in `AgentResult`, provider sees only selected history, context failure makes zero additional
