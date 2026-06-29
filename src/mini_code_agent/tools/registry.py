@@ -58,7 +58,16 @@ class ToolRegistry:
     def definitions(self) -> tuple[ToolDefinition, ...]:
         return self._definitions
 
-    async def execute(self, call: ToolCall) -> ToolResult:
+    def definition_for(self, name: str) -> ToolDefinition | None:
+        for definition in self._definitions:
+            if definition.name == name:
+                return definition
+        return None
+
+    def tool_for(self, name: str) -> RegisteredTool | None:
+        return self._tools.get(name)
+
+    def validate(self, call: ToolCall) -> ToolResult | None:
         tool = self._tools.get(call.name)
         if tool is None:
             return self._error(
@@ -74,7 +83,13 @@ class ToolRegistry:
                 "invalid_arguments",
                 "Tool arguments do not match the registered schema.",
             )
+        return None
 
+    async def execute(self, call: ToolCall) -> ToolResult:
+        validation_error = self.validate(call)
+        if validation_error is not None:
+            return validation_error
+        tool = self._tools[call.name]
         try:
             candidate = cast(object, await tool.execute(call))
         except Exception:

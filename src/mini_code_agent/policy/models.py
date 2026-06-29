@@ -66,3 +66,23 @@ class PolicyResult(BaseModel):
     decision: PolicyDecision
     rule_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
     rationale: str = Field(min_length=1, max_length=500)
+
+
+class ActionPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tool_call_id: str = Field(min_length=1, max_length=128)
+    tool_name: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    side_effect: SideEffect
+    risk: RiskLevel
+    summary: str = Field(min_length=1, max_length=500)
+    resources: tuple[ResourcePath, ...] = Field(default=(), max_length=32)
+    diff: str | None = Field(default=None, max_length=32_768)
+
+
+class ApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    preview: ActionPreview
+    rule_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
+    rationale: str = Field(min_length=1, max_length=500)
