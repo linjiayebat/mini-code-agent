@@ -76,6 +76,7 @@
 
 ## M1 Local Verification
 
+- Package version: `0.2.0a0`; milestone tag target: `v0.2.0-alpha.0`.
 - uv-managed Python 3.13.14 project environment and isolated Python 3.12.13 on Windows 11.
 - M1-focused tests: 48 passed.
 - Full repository: 73 passed, 1 skipped because Windows denied symlink creation.
