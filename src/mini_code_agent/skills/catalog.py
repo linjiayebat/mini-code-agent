@@ -130,7 +130,9 @@ class SkillCatalog:
                     continue
                 if _is_link_or_reparse(details):
                     issues.append(
-                        _issue(root, SkillIssueCode.UNSAFE_ENTRY, _possible_skill_id(root, child.name))
+                        _issue(
+                            root, SkillIssueCode.UNSAFE_ENTRY, _possible_skill_id(root, child.name)
+                        )
                     )
                     continue
                 if not stat.S_ISDIR(details.st_mode):
@@ -312,9 +314,7 @@ def _issue(
     skill_id: str | None = None,
 ) -> SkillIssue:
     normalized = (
-        SkillIssueCode.ROOT_UNAVAILABLE
-        if code is SkillIssueCode.ROOT_UNAVAILABLE
-        else code
+        SkillIssueCode.ROOT_UNAVAILABLE if code is SkillIssueCode.ROOT_UNAVAILABLE else code
     )
     return SkillIssue(
         root_id=root.root_id,

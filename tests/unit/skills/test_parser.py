@@ -57,22 +57,9 @@ def test_parser_rejects_invalid_document_boundaries(
 @pytest.mark.parametrize(
     "frontmatter",
     [
-        (
-            "name: review-python\n"
-            "name: shadowed\n"
-            "description: Review Python.\n"
-            "version: 1.0.0"
-        ),
-        (
-            "name: &name review-python\n"
-            "description: *name\n"
-            "version: 1.0.0"
-        ),
-        (
-            "name: review-python\n"
-            "description: !custom Review Python.\n"
-            "version: 1.0.0"
-        ),
+        ("name: review-python\nname: shadowed\ndescription: Review Python.\nversion: 1.0.0"),
+        ("name: &name review-python\ndescription: *name\nversion: 1.0.0"),
+        ("name: review-python\ndescription: !custom Review Python.\nversion: 1.0.0"),
         "- review-python\n- 1.0.0",
         "1: value",
     ],
@@ -87,12 +74,7 @@ def test_parser_rejects_unsafe_yaml(frontmatter: str) -> None:
 def test_parser_rejects_unknown_metadata_and_directory_mismatch() -> None:
     with pytest.raises(SkillParseError) as unknown:
         parse_skill_document(
-            document(
-                "name: review-python\n"
-                "description: Review Python.\n"
-                "version: 1.0.0\n"
-                "hooks: []"
-            ),
+            document("name: review-python\ndescription: Review Python.\nversion: 1.0.0\nhooks: []"),
             directory_name="review-python",
         )
     assert unknown.value.code is SkillIssueCode.INVALID_METADATA

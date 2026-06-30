@@ -3,7 +3,6 @@ from __future__ import annotations
 # pyright: reportUnknownArgumentType=false
 # pyright: reportUnknownMemberType=false
 # pyright: reportUnknownVariableType=false
-
 from hashlib import sha256
 from typing import NamedTuple
 

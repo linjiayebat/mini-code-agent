@@ -7,6 +7,7 @@ from mini_code_agent.repair import (
     RepairActionGuard,
     RepairRuntime,
 )
+from mini_code_agent.skills import SkillCatalog
 from mini_code_agent.testing import PytestRunner
 from mini_code_agent.tools import RunTestsTool
 
@@ -15,6 +16,7 @@ def verify_installed_package() -> None:
     assert AgentRepairWorker.__name__ == "AgentRepairWorker"
     assert RepairActionGuard.__name__ == "RepairActionGuard"
     assert RepairRuntime.__name__ == "RepairRuntime"
+    assert SkillCatalog.__name__ == "SkillCatalog"
     assert PytestRunner.__name__ == "PytestRunner"
     assert RunTestsTool.__name__ == "RunTestsTool"
     executable = shutil.which("mini-code-agent")
