@@ -4,6 +4,22 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+## [0.10.0-alpha.0] - 2026-06-30
+
+### Added
+
+- Typed Git porcelain-v2 status models and NUL-delimited parser.
+- Hardened bounded Git client with exact Workspace top-level verification.
+- Read-only `git_status` and staged/unstaged `git_diff` Agent tools.
+
+### Security
+
+- Git commands disable paging, optional locks, fsmonitor, external diff, textconv, and submodule
+  recursion.
+- Output/time/entry/patch limits fail closed without returning partial evidence or raw stderr.
+- Real tests prove configured execution extensions do not run and `.git/index` is not modified.
+- M4a explicitly excludes all Git mutation and automatic commit operations.
+
 ## [0.9.0-alpha.0] - 2026-06-30
 
 ### Added

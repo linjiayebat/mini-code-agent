@@ -81,7 +81,8 @@ Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里
 | 确定性 Context Budget | 长任务会超过上下文窗口；直接截断可能拆开调用/结果，或抹掉已完成写操作并诱发重复副作用 | `TokenEstimator` Protocol、canonical JSON UTF-8 估算、Pydantic 预算、原子 ToolCall/ToolResult、只读最近后缀、副作用/未知工具固定、SHA-256 标记、类型化事件 | 每次 Provider I/O 前构造有界 `ContextWindow`；完整 transcript 留在 Runtime，Provider 只看选中历史；固定内容无法容纳时 fail closed | 避免半个工具交换、无界请求、原始省略内容泄漏和因遗忘副作用导致的重复动作；不依赖模型生成摘要 | 18 项 Context 单测、77 项 Context/Runtime/集成测试通过；覆盖 609/610/611 边界、副作用与未知工具固定、零 Provider I/O 失败路径 |
 | Checkpoint/Resume | 进程退出不应丢失完整上下文，但从旧 prompt 重跑可能重复真实写入 | SQLite schema v2 事务迁移、稳定 typed transcript、canonical JSON SHA-256、Tool/Workspace fingerprint、增量 Trace 风险扫描、显式 replay policy、原子 claim | 初始及完整 ToolResult 后保存；重开后验证兼容性，将旧 Run 标记 `INTERRUPTED`、新建 Run 并从下一逻辑 turn 继续 | 恢复可重放的 Provider/只读中断；阻断未纳入快照的 write/execute/network；防止伪造 plan、并发双 claim 和 stale TOCTOU | 14 项 Resume 分析/claim 单测与 2 项进程边界集成测试；并发 claim 连续 5 次均一个 winner；真实治理写入后 Resume 阻断且文件/审批各一次 |
 | 版本化 Session 与追加式 Trace | 进程退出后纯内存事件不可查询；若 Trace 与状态分开写会出现索引/正文不一致，静默持久化失败还会继续产生副作用 | SQLite schema v1、WAL、`BEGIN IMMEDIATE`、foreign key、Session/Run materialized projection、UUID event ID、canonical JSON、SHA-256 前驱链、required `EventJournal`、bounded busy timeout | 单事务追加 typed lifecycle event 并更新 Run/Session；Provider/Tool 前记录 Started，完成后记录 Completed；支持重开查询、分页读取和全链验证 | 消除 Trace/投影跨文件提交缝隙，将持久化故障转化为 `PERSISTENCE_ERROR`，用 started-only 状态标记不确定副作用，阻止后续工具继续执行 | 42 项 persistence 单测与 3 项真实集成测试；覆盖幂等冲突、4 类篡改、锁超时、终态回滚、Secret 扫描及第二个治理写入零落盘 |
-| Git/test/repair loop | 文件写完不等于任务完成 | Git status/diff、测试发现、诊断解析、有限重试 | 修改后运行验证，将失败反馈给 Agent 修复 | 建立修改、验证、修复、再验证闭环 | 首次通过率、修复后通过率、平均修复轮次 |
+| 只读 Git 证据 | Agent 修改前后需要可靠识别用户已有变更，但普通 Git 配置可在 status/diff 中执行 fsmonitor、external diff 或 textconv | argv-only Git CLI、`--porcelain=v2 -z` 解析、exact top-level、`--no-optional-locks`、禁用 fsmonitor/ext-diff/textconv/submodule、联合输出/时间/条目/patch 上限、canonical SHA-256 | `git_status` 返回 typed branch/XY/rename/conflict/untracked；`git_diff` 返回 staged/unstaged patch | 避免 locale 文本误解析、父仓库越界、配置驱动代码执行、可选 index 写入和误将截断 patch 当完整证据 | 27 项 Git 单测、4 项 Tool 单测、1 项真实 Agent 集成；恶意扩展零执行，status/diff 前后 index 字节与纳秒 mtime 不变 |
+| Test/repair loop | 文件写完不等于任务完成 | 测试发现、结构化诊断、有限重试 | 修改后运行验证，将失败反馈给 Agent 修复 | 建立修改、验证、修复、再验证闭环 | M4b/M4c 待实现；首次通过率、修复后通过率、平均修复轮次待实测 |
 | 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | Python 3.12/3.13 各 551 通过、4 项 symlink 权限跳过；89.89% 分支覆盖率；四组构建安装 smoke 通过；远程 CI 待验证 |
 | 可扩展 Harness | Skills、Hooks、MCP、Subagent 会增加控制流复杂度 | 稳定 Protocol、EventBus、能力声明、依赖倒置 | 在不侵入 Agent Core 的前提下增加能力 | 避免扩展绕过权限、Trace 和 Session | 插件合约测试；扩展数量后续回填 |
 
@@ -135,7 +136,7 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 
 ### 7.7 Git/test/repair 闭环
 
-“Agent 修改后不会直接宣布完成，而是检查 Git diff、运行测试、结构化解析失败，再在有限轮次内修复。最终状态会区分测试通过、重试耗尽、权限阻断和环境错误。”
+“M4a 先把 Git 做成只读证据协议，而不是开放任意 Git 命令：status 使用 porcelain-v2 NUL parser，diff 禁用 external diff/textconv，二者关闭 optional locks、fsmonitor 和 submodule，并要求 Workspace 等于仓库 top-level。这样能看见用户已有改动，又不写 index 或跨边界读取。M4b/M4c 再加入测试诊断和有限修复，不把尚未实现的闭环写成成果。”
 
 ### 7.8 Framework-light 的取舍
 
@@ -188,6 +189,9 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 - 通过 Provider 进程崩溃重开恢复、真实治理写入后零重放、Workspace/Tool 漂移、篡改、
   stale plan、事务回滚和并发双 claim 测试；明确 Provider retry 为 at-least-once，
   Checkpoint 为有界明文且不宣称外部 exactly-once。
+- 实现 hardened `git_status`/`git_diff`：解析 porcelain-v2 NUL 协议，严格限制仓库
+  top-level、时间与输出，禁用 optional locks、fsmonitor、external diff、textconv 和
+  submodule；真实恶意配置测试证明扩展零执行且 Git index 不发生写入。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
 - 建立 Ruff、严格 Pyright、Pytest 覆盖率门槛和哈希约束构建，Python 3.12/3.13
   各 551 项通过、4 项因 Windows symlink 权限跳过，分支覆盖率 89.89%。

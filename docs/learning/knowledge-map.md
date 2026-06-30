@@ -527,6 +527,21 @@
 - 达到上限后停止并保留诊断。
 - 无测试项目与测试命令失败能正确区分。
 
+#### M4a 只读 Git 实现补充
+
+- 把 porcelain v2 当作 wire protocol：固定版本、机器字段和 NUL framing，不能按人类
+  输出或当前 locale 猜测。
+- Git index 与 working tree 是两个状态层；XY 的第一个字符描述 index，第二个描述
+  working tree。
+- status/diff 的“只读”是业务语义，不代表进程不会执行配置扩展或写 optional lock；
+  安全边界必须由固定 argv 和负向测试证明。
+- `rev-parse --show-toplevel` 是仓库 ownership 检查。Workspace 子目录不能隐式继承父
+  仓库权限。
+- canonical status SHA-256 类似 Flink offset 快照：标识观察到的状态，但不能阻止后续
+  并发变化。
+- Java 类比：porcelain parser 类似解析稳定 DTO 协议；`--` 类似 prepared statement
+  把参数和控制语法分离；GitErrorCode 类似服务边界统一异常码。
+
 ### L9：Skills 与 Hooks
 
 **理论**

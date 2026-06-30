@@ -5,7 +5,7 @@ A framework-light, provider-neutral coding agent built from first principles.
 > Status: pre-alpha. M3c provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
-> context admission, versioned SQLite Session/Trace persistence, and fail-closed
+> context admission, hardened read-only Git evidence, versioned SQLite Session/Trace persistence, and fail-closed
 > Checkpoint/Resume. Shell-string execution and live-provider CI are not implemented.
 
 ## Requirements
@@ -158,6 +158,17 @@ as bounded plaintext. This is local crash recovery, not encryption, distributed 
 exactly-once external execution. Keep the database outside the model-controlled Workspace. See
 `docs/architecture/checkpoint-resume.md`.
 
+## Read-only Git
+
+`git_status` parses bounded `--porcelain=v2 -z` output into typed branch and file entries.
+`git_diff` returns a bounded staged or unstaged patch. The Workspace must be the exact repository
+top-level.
+
+The client disables paging, optional locks, fsmonitor, external diff, textconv, and submodule
+recursion. It never exposes model-controlled Git argv and does not provide add/commit/reset/
+checkout/push. Git evidence may contain source code or secrets and is a point-in-time observation.
+See `docs/architecture/readonly-git.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -172,6 +183,7 @@ exactly-once external execution. Keep the database outside the model-controlled 
 - Context budget: `docs/architecture/context-budget.md`
 - Session and Trace: `docs/architecture/session-trace.md`
 - Checkpoint and Resume: `docs/architecture/checkpoint-resume.md`
+- Read-only Git: `docs/architecture/readonly-git.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
@@ -180,6 +192,7 @@ exactly-once external execution. Keep the database outside the model-controlled 
 - Context budget ADR: `docs/adr/0006-deterministic-context-budget.md`
 - SQLite Session/Trace ADR: `docs/adr/0007-sqlite-session-trace.md`
 - Safe Checkpoint/Resume ADR: `docs/adr/0008-safe-checkpoint-resume.md`
+- Hardened read-only Git ADR: `docs/adr/0009-hardened-readonly-git.md`
 
 ## License
 

@@ -7,10 +7,10 @@
 | L2 Provider and Tool Calling | Complete locally | Anthropic + OpenAI-compatible adapters; 124 focused tests passed |
 | L3 Tool Registry | Complete locally | Draft 2020-12 validation, dispatch and bounded result contract |
 | L4 Workspace and Policy | Complete locally | WorkspaceBoundary + deterministic Policy + approval governance |
-| L5 File/Edit/Command/Git tools | In progress | Read/Search/Write/Edit/argv Command complete; Git deferred |
+| L5 File/Edit/Command/Git tools | Complete locally | Read/Search/Write/Edit/argv Command plus hardened Git status/diff |
 | L6 Context Budget | Complete locally | Deterministic estimator, atomic selection, side-effect pinning, runtime integration |
 | L7 Session/Checkpoint/Trace | Complete locally | M3b Trace plus M3c stable Checkpoint/fail-closed Resume |
-| L8 Git/test/repair | Not started | |
+| L8 Git/test/repair | In progress | M4a read-only Git evidence complete; test diagnostics/repair pending |
 | L9 Skills and Hooks | Not started | |
 | L10 MCP | Not started | |
 | L11 Subagent and Worktree | Not started | |
@@ -426,3 +426,41 @@
   `mini_code_agent-0.9.0a0.tar.gz`.
 - The exact wheel and sdist passed four isolated console-script smoke tests on Python 3.12 and
   3.13.
+
+## M4a Read-only Git Notes
+
+- `--porcelain=v2 -z` is a versioned machine protocol. NUL framing preserves spaces, tabs,
+  newlines, rename source paths, and leading dashes without shell-style guessing.
+- Git status has separate index/worktree XY states. This maps naturally to database committed
+  state versus uncommitted in-memory changes, but neither layer is locked by an observation.
+- A nominally read-only Git command can execute fsmonitor, external diff, textconv, pager, or
+  submodule behavior from configuration. The client disables these extension points explicitly.
+- `--no-optional-locks` prevents refresh-only index writes; tests compare index bytes and mtime.
+- Workspace must equal repository top-level. Rejecting nested parent repositories prevents an
+  Agent scoped to one folder from reading sibling changes.
+- `--` terminates options. M4a avoids model-controlled pathspec entirely, making leading-dash
+  filenames ordinary data.
+- Status and diff SHA-256 values identify exactly what the Agent observed. They do not prove the
+  repository stayed unchanged afterward.
+- M4a is evidence only: no add, commit, reset, clean, checkout, fetch, push, or automatic repair.
+
+## M4a Exercises
+
+1. Compare human `git status` with porcelain v2 and explain why only one is a parser contract.
+2. Create filenames containing spaces, tabs, newlines, and a leading dash; inspect NUL framing.
+3. Configure `core.fsmonitor` and `diff.external` to write a marker, then trace why M4a suppresses
+   both.
+4. Run status repeatedly and compare `.git/index` bytes/mtime with and without optional locks.
+5. Configure Workspace as a child of a larger repository and explain the information-boundary
+   rejection.
+6. Change a file immediately after obtaining the status SHA-256 and explain why the fingerprint
+   is evidence identity, not optimistic locking.
+
+## M4a Current Verification
+
+- Git models/parser/client, Tool, and Agent focused suite: 32 passed.
+- Git plus Command regression suite: 56 passed.
+- Real Git extension suppression and byte-identical index tests: passed.
+- Ruff and strict Pyright: passed.
+- Dual-Python full suite, coverage, security, build, and artifact smoke evidence will be recorded
+  only after the `v0.10.0-alpha.0` release gates complete.

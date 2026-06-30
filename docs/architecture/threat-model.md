@@ -77,5 +77,12 @@
 - Provider/read-only replay requires explicit policy and can still duplicate Provider cost or
   observations. No exactly-once or external-system reconciliation is claimed.
 - SQLite serializes local Checkpoint claims; it is not a multi-host lease service.
+- Read-only Git commands can execute repository-configured fsmonitor, external diff, textconv, or
+  submodule behavior unless explicitly disabled. M4a fixes command templates and tests that these
+  extension points do not run.
+- Git status/diff can contain credentials or proprietary source and are sent to the model as Tool
+  results. Their hashes provide identity, not confidentiality or authenticity.
+- `--no-optional-locks` prevents optional index refresh, but Git evidence remains a stale-able
+  observation under concurrent filesystem mutation.
 - Configured-value scrubbing cannot detect unknown secrets, and SQLite is not encrypted at rest.
 - MCP connection does not establish trust.
