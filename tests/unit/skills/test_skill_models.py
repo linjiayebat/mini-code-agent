@@ -51,7 +51,10 @@ def test_descriptor_requires_source_qualified_identity_and_derived_trust() -> No
         )
 
 
-@pytest.mark.parametrize("version", ["latest", "01.2.3", "1.2", "1.2.3+build"])
+@pytest.mark.parametrize(
+    "version",
+    ["latest", "01.2.3", "1.2", "1.2.3+build", "1.2.3-01"],
+)
 def test_metadata_rejects_unsupported_versions(version: str) -> None:
     with pytest.raises(ValidationError):
         SkillMetadata(

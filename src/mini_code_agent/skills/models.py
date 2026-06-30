@@ -65,10 +65,12 @@ class SkillMetadata(BaseModel):
     name: SkillName
     description: str = Field(min_length=1, max_length=500)
     version: str = Field(
+        max_length=128,
         pattern=(
             r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-            r"(?:-(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
-        )
+            r"(?:-(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*))"
+            r"(?:\.(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*)))*)?$"
+        ),
     )
     model_invocable: bool = True
 

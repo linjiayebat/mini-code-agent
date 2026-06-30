@@ -5,6 +5,7 @@ import stat
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
+from itertools import islice
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -100,16 +101,22 @@ class SkillCatalog:
         max_roots: int = 8,
         max_candidates: int = 128,
     ) -> tuple[SkillCatalog, SkillDiscoveryReport]:
-        ordered_roots = tuple(sorted(roots, key=lambda item: (item.source.value, item.root_id)))
         if not 1 <= max_roots <= 32 or not 1 <= max_candidates <= 512:
             raise SkillCatalogError(SkillIssueCode.LIMIT_EXCEEDED)
-        if len(ordered_roots) > max_roots:
+        root_values = tuple(islice(roots, max_roots + 1))
+        if len(root_values) > max_roots:
             raise SkillCatalogError(SkillIssueCode.LIMIT_EXCEEDED)
+        ordered_roots = tuple(
+            sorted(root_values, key=lambda item: (item.source.value, item.root_id))
+        )
         root_ids = tuple(root.root_id for root in ordered_roots)
         if len(root_ids) != len(set(root_ids)):
             raise SkillCatalogError(SkillIssueCode.LIMIT_EXCEEDED)
 
-        disabled = frozenset(disabled_ids)
+        disabled_values = tuple(islice(disabled_ids, 65))
+        if len(disabled_values) > 64:
+            raise SkillCatalogError(SkillIssueCode.LIMIT_EXCEEDED)
+        disabled = frozenset(disabled_values)
         issues: list[SkillIssue] = []
         candidates: list[_Candidate] = []
         for root in ordered_roots:
@@ -118,10 +125,14 @@ class SkillCatalog:
                 issues.append(_issue(root, root_code))
                 continue
             try:
-                children = tuple(sorted(os.scandir(root.path), key=lambda item: item.name))
+                with os.scandir(root.path) as iterator:
+                    children = tuple(islice(iterator, 513))
             except OSError:
                 issues.append(_issue(root, SkillIssueCode.ROOT_UNAVAILABLE))
                 continue
+            if len(children) > 512:
+                raise SkillCatalogError(SkillIssueCode.LIMIT_EXCEEDED)
+            children = tuple(sorted(children, key=lambda item: item.name))
             for child in children:
                 try:
                     details = child.stat(follow_symlinks=False)

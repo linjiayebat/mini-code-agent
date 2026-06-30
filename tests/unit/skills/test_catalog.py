@@ -145,6 +145,22 @@ def test_root_and_candidate_limits_fail_before_partial_catalog(tmp_path: Path) -
     assert candidates.value.code is SkillIssueCode.LIMIT_EXCEEDED
 
 
+def test_disabled_and_directory_entry_counts_are_bounded(tmp_path: Path) -> None:
+    root = root_for(tmp_path / "project", SkillSource.PROJECT, "project-main")
+    with pytest.raises(SkillCatalogError) as disabled:
+        SkillCatalog.discover(
+            (root,),
+            disabled_ids=tuple(f"project:skill-{index}" for index in range(65)),
+        )
+    assert disabled.value.code is SkillIssueCode.LIMIT_EXCEEDED
+
+    for index in range(513):
+        (root.path / f"unrelated-{index}.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(SkillCatalogError) as entries:
+        SkillCatalog.discover((root,))
+    assert entries.value.code is SkillIssueCode.LIMIT_EXCEEDED
+
+
 def test_unsafe_or_missing_root_contributes_no_skills(tmp_path: Path) -> None:
     missing = SkillRoot(
         path=(tmp_path / "missing").resolve(),

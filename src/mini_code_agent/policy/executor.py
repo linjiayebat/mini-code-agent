@@ -82,14 +82,15 @@ class GovernedToolExecutor:
                 return self._permission_denied(call.id)
             if not guard_result.allowed:
                 return self._permission_denied(call.id)
-        hook_context = ToolHookContext(
-            call=call,
-            definition=definition,
-            preview=preview,
-            session_mode=self._session_mode,
-            trust_source=self._trust_source,
-        )
+        hook_context: ToolHookContext | None = None
         if self._hooks is not None:
+            hook_context = ToolHookContext(
+                call=call,
+                definition=definition,
+                preview=preview,
+                session_mode=self._session_mode,
+                trust_source=self._trust_source,
+            )
             hook_result = await self._hooks.before_tool(hook_context)
             if not hook_result.allowed:
                 return self._permission_denied(call.id)
@@ -128,7 +129,7 @@ class GovernedToolExecutor:
             if not approved:
                 return self._permission_denied(call.id)
         result = await self._registry.execute(call)
-        if self._hooks is not None:
+        if self._hooks is not None and hook_context is not None:
             await self._hooks.after_tool(
                 PostToolHookContext(
                     **hook_context.model_dump(),
