@@ -75,6 +75,12 @@ def test_repair_request_requires_unique_bounded_paths_and_targets() -> None:
             editable_paths=("src/a.py",),
             reason="Verify.",
         )
+    with pytest.raises(ValidationError):
+        RepairRequest(
+            user_prompt="Fix.",
+            editable_paths=("x" * 1025,),
+            reason="Verify.",
+        )
 
 
 @pytest.mark.parametrize(
@@ -127,9 +133,44 @@ def test_test_summary_requires_failure_diagnostics() -> None:
 
 
 def test_result_succeeds_only_for_trusted_terminal_reasons() -> None:
-    assert repair_result(RepairStopReason.REPAIRED).succeeded is True
-    assert repair_result(RepairStopReason.ALREADY_PASSING).succeeded is True
+    baseline = failed_summary()
+    repaired = attempt_record(
+        test=passed_summary(),
+        failure_sha256=None,
+    )
+    assert (
+        repair_result(
+            RepairStopReason.REPAIRED,
+            baseline_test=baseline,
+            final_test=repaired.test,
+            attempts=(repaired,),
+        ).succeeded
+        is True
+    )
+    passing = passed_summary()
+    assert (
+        repair_result(
+            RepairStopReason.ALREADY_PASSING,
+            baseline_test=passing,
+            final_test=passing,
+        ).succeeded
+        is True
+    )
     assert repair_result(RepairStopReason.MAX_ATTEMPTS).succeeded is False
+
+
+def test_result_rejects_success_without_matching_test_evidence() -> None:
+    with pytest.raises(ValidationError, match="success evidence is inconsistent"):
+        repair_result(RepairStopReason.REPAIRED)
+    with pytest.raises(ValidationError, match="success evidence is inconsistent"):
+        repair_result(
+            RepairStopReason.REPAIRED,
+            baseline_test=failed_summary(),
+            final_test=failed_summary(),
+            attempts=(attempt_record(),),
+        )
+    with pytest.raises(ValidationError, match="success evidence is inconsistent"):
+        repair_result(RepairStopReason.ALREADY_PASSING)
 
 
 def test_result_requires_ordered_attempts_and_matching_final_test() -> None:

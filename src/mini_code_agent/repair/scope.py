@@ -9,6 +9,7 @@ from mini_code_agent.policy.models import (
     ActionPreview,
 )
 from mini_code_agent.repair.fingerprint import scope_sha256
+from mini_code_agent.repair.models import RepairPath
 from mini_code_agent.tools.base import SideEffect
 from mini_code_agent.workspace.boundary import WorkspaceBoundary
 
@@ -16,7 +17,7 @@ from mini_code_agent.workspace.boundary import WorkspaceBoundary
 class RepairScope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    editable_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
+    editable_paths: tuple[RepairPath, ...] = Field(min_length=1, max_length=32)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
     @classmethod

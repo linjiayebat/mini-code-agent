@@ -12,6 +12,7 @@ from mini_code_agent.persistence.errors import (
 from mini_code_agent.persistence.models import SessionTraceLimits
 
 DATABASE_SCHEMA_VERSION = 3
+_CHECKPOINT_SCHEMA_VERSION = 2
 
 _V1_REQUIRED_TABLES = frozenset({"sessions", "runs", "trace_events"})
 _V2_REQUIRED_TABLES = _V1_REQUIRED_TABLES | {"checkpoints"}
@@ -251,7 +252,7 @@ def _migrate_v1_to_v2(connection: sqlite3.Connection) -> None:
     try:
         for statement in _CHECKPOINT_SCHEMA_STATEMENTS:
             connection.execute(statement)
-        connection.execute(f"PRAGMA user_version = {DATABASE_SCHEMA_VERSION}")
+        connection.execute(f"PRAGMA user_version = {_CHECKPOINT_SCHEMA_VERSION}")
         connection.commit()
     except Exception:
         connection.rollback()

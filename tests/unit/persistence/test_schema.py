@@ -195,6 +195,35 @@ def test_schema_v2_migration_rolls_back_objects_and_version(
     assert repair_runs is None
 
 
+def test_schema_v1_to_v3_failure_preserves_retryable_v2_version(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "v1-repair-conflict.db"
+    initialize_database(database, SessionTraceLimits())
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("DROP TABLE checkpoints")
+        connection.execute("DROP TABLE repair_events")
+        connection.execute("DROP TABLE repair_runs")
+        connection.execute("CREATE TABLE repair_events_repair_type_idx (value TEXT)")
+        connection.execute("PRAGMA user_version = 1")
+
+    with pytest.raises(PersistenceError) as captured:
+        initialize_database(database, SessionTraceLimits())
+
+    with closing(sqlite3.connect(database)) as connection:
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        checkpoint = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'checkpoints'"
+        ).fetchone()
+        repair_runs = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'repair_runs'"
+        ).fetchone()
+    assert captured.value.code is PersistenceErrorCode.STORAGE_FAILED
+    assert version == 2
+    assert checkpoint is not None
+    assert repair_runs is None
+
+
 def test_schema_rejects_directory_without_leaking_path(tmp_path: Path) -> None:
     database = tmp_path / "database-directory"
     database.mkdir()

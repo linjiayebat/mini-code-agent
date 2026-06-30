@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Self
+from typing import Annotated, Self
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -18,6 +18,7 @@ from mini_code_agent.testing.models import (
 
 _IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
+RepairPath = Annotated[str, Field(min_length=1, max_length=1024)]
 
 
 def _repair_id() -> str:
@@ -59,7 +60,7 @@ class RepairRequest(BaseModel):
     user_prompt: str = Field(min_length=1, max_length=32_768)
     system_prompt: str = Field(default="", max_length=32_768)
     test_targets: tuple[ProfileTarget, ...] = Field(default=(), max_length=32)
-    editable_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
+    editable_paths: tuple[RepairPath, ...] = Field(min_length=1, max_length=32)
     reason: str = Field(min_length=1, max_length=500)
 
     @model_validator(mode="after")
@@ -76,7 +77,7 @@ class RepairPreview(BaseModel):
 
     repair_id: str = Field(pattern=_IDENTIFIER_PATTERN)
     test_targets: tuple[ProfileTarget, ...] = Field(default=(), max_length=32)
-    editable_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
+    editable_paths: tuple[RepairPath, ...] = Field(min_length=1, max_length=32)
     scope_sha256: str = Field(pattern=_SHA256_PATTERN)
     max_attempts: int = Field(ge=1, le=10)
     max_elapsed_seconds: float = Field(gt=0, le=3600)
@@ -128,7 +129,7 @@ class RepairWorkerRequest(BaseModel):
     remaining_attempts: int = Field(ge=1, le=10)
     user_prompt: str = Field(min_length=1, max_length=32_768)
     system_prompt: str = Field(default="", max_length=32_768)
-    editable_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
+    editable_paths: tuple[RepairPath, ...] = Field(min_length=1, max_length=32)
     last_test: RepairTestSummary
     remaining_elapsed_ms: int = Field(ge=0, le=3_600_000)
     remaining_patch_bytes: int = Field(ge=0, le=8 * 1024 * 1024)
@@ -165,7 +166,7 @@ class RepairResult(BaseModel):
 
     repair_id: str = Field(pattern=_IDENTIFIER_PATTERN)
     stop_reason: RepairStopReason
-    editable_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
+    editable_paths: tuple[RepairPath, ...] = Field(min_length=1, max_length=32)
     scope_sha256: str = Field(pattern=_SHA256_PATTERN)
     baseline_test: RepairTestSummary | None = None
     final_test: RepairTestSummary | None = None
@@ -180,6 +181,24 @@ class RepairResult(BaseModel):
             raise ValueError("attempt sequence is inconsistent")
         if self.attempts and self.final_test != self.attempts[-1].test:
             raise ValueError("final test does not match the last attempt")
+        if self.stop_reason is RepairStopReason.ALREADY_PASSING:
+            valid_success = (
+                not self.attempts
+                and self.baseline_test is not None
+                and self.final_test == self.baseline_test
+                and _test_summary_passed(self.final_test)
+            )
+            if not valid_success:
+                raise ValueError("success evidence is inconsistent")
+        if self.stop_reason is RepairStopReason.REPAIRED:
+            valid_success = (
+                bool(self.attempts)
+                and self.baseline_test is not None
+                and self.baseline_test.failure_sha256 is not None
+                and _test_summary_passed(self.final_test)
+            )
+            if not valid_success:
+                raise ValueError("success evidence is inconsistent")
         return self
 
     @property
@@ -188,3 +207,11 @@ class RepairResult(BaseModel):
             RepairStopReason.ALREADY_PASSING,
             RepairStopReason.REPAIRED,
         }
+
+
+def _test_summary_passed(summary: RepairTestSummary | None) -> bool:
+    return (
+        summary is not None
+        and summary.status is PytestExecutionStatus.PASSED
+        and summary.report_status is PytestReportStatus.COMPLETE
+    )
