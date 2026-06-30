@@ -1,4 +1,4 @@
-# M5a Governed Skills Implementation Plan
+﻿# M5a Governed Skills Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
@@ -27,7 +27,7 @@ existing Tool Registry, Pytest, Ruff, strict Pyright.
 - `src/mini_code_agent/skills/catalog.py`: hardened discovery, conflict quarantine, disable set,
   and drift-checked loading.
 - `src/mini_code_agent/skills/tools.py`: `list_skills` and `load_skill` read-only tools.
-- `tests/unit/skills/test_models.py`: model bounds and invariants.
+- `tests/unit/skills/test_skill_models.py`: model bounds and invariants.
 - `tests/unit/skills/test_parser.py`: document syntax, YAML safety, and size tests.
 - `tests/unit/skills/test_catalog.py`: filesystem, source, conflict, disable, and drift tests.
 - `tests/unit/skills/test_tools.py`: Tool schemas and public result tests.
@@ -43,7 +43,7 @@ existing Tool Registry, Pytest, Ruff, strict Pyright.
 
 **Files:**
 - Create: `src/mini_code_agent/skills/models.py`
-- Create: `tests/unit/skills/test_models.py`
+- Create: `tests/unit/skills/test_skill_models.py`
 
 - [ ] **Step 1: Write failing model tests**
 
@@ -71,7 +71,7 @@ def test_metadata_rejects_unknown_fields_and_non_semver() -> None:
 
 - [ ] **Step 2: Run tests and verify collection fails**
 
-Run: `uv run pytest tests/unit/skills/test_models.py -q`
+Run: `uv run pytest tests/unit/skills/test_skill_models.py -q`
 
 Expected: FAIL because `mini_code_agent.skills.models` does not exist.
 
@@ -104,14 +104,14 @@ Add `SkillRoot`, `SkillDescriptor`, `LoadedSkill`, `SkillIssueCode`, `SkillIssue
 
 - [ ] **Step 4: Run focused tests**
 
-Run: `uv run pytest tests/unit/skills/test_models.py -q`
+Run: `uv run pytest tests/unit/skills/test_skill_models.py -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit contracts**
 
 ```powershell
-git add src/mini_code_agent/skills/models.py tests/unit/skills/test_models.py
+git add src/mini_code_agent/skills/models.py tests/unit/skills/test_skill_models.py
 git commit -m "feat: define governed skill contracts"
 ```
 

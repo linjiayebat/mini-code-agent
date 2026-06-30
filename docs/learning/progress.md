@@ -594,3 +594,48 @@
   `071ea0556fa294cddbadc9c5698a79fb9a104b7d`。GitHub prerelease
   <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.12.0-alpha.0> 已上传 wheel
   与 sdist，远端 asset digest 与上述本地 smoke 制品一致。
+
+## M5a Governed Skills and Hooks Notes
+
+- Skill 不是“一个会执行的插件”，而是带 source/trust/version/SHA 的不可信 Markdown
+  数据。`list_skills` 只给 descriptor，`load_skill` 显式消耗 context。
+- managed/user/project 是宿主选择的 provenance，不由 YAML 声明。qualified ID 避免
+  project Skill 静默覆盖 user/managed Skill；同 source 冲突全部 quarantine。
+- restricted PyYAML 与 Pydantic 分两层：前者拒绝 duplicate key、alias、custom tag 和
+  非字符串 key，后者拒绝 unknown field、非法 name/SemVer 和越界文本。
+- discovery 与 load 之间存在 TOCTOU。load 除 SHA 外还重验 root/dir/file、reparse、
+  open-handle device/inode/ctime、metadata 和 byte count；漂移必须 rediscover。
+- Hook 授权是 monotonic：pre-Hook 的 continue 只表示进入后续 Policy，不是 allow；
+  block/timeout/exception/invalid/audit failure 都在 Tool 前 fail closed。
+- post-Hook 发生在 ToolResult 已产生之后，因此普通失败只能隔离并继续 observer，不能把
+  已完成副作用改写成“未执行”。取消仍传播，调用方保留不确定边界。
+- Hook audit 不保存 arguments、resources、diff、result、Skill body 或 exception text。
+  M5a 只有 null/recording sink；没有 `run_id/turn` 的 Tool API 前不虚构 durable audit。
+- project command/HTTP/prompt Hook、动态 Python import、Skill supporting files 和 MCP
+  均明确不在 M5a 范围。
+
+## M5a Exercises
+
+1. 跟踪 project Skill 从 `SKILL.md` 到 descriptor，再到 fingerprint-required ToolResult。
+2. 替换相同字节文件，比较 SHA 与 file identity 分别能证明什么。
+3. 让 Skill 指示写文件，证明正文可影响模型意图但不能改变 Policy authority。
+4. 让 pre-Hook continue 配合 deny Policy，定位最终拒绝发生在哪一层。
+5. 让 pre/post Hook 分别 timeout，解释为什么前者阻止 Tool、后者保留 ToolResult。
+6. 设计 command Hook 时列出进程 argv、环境、cwd、输出、timeout、approval 和 sandbox
+   必须新增的边界，说明为什么不能直接 `subprocess`。
+
+## M5a Local Verification
+
+- Skill/Hook model、parser、catalog、lazy load、Tool、runner、Policy integration 和真实 Agent
+  集成测试已加入。Python 3.12.13 与 3.13.14 完整开发套件各为 867 passed、8 skipped；
+  skip 均为 Windows symlink privilege 条件。
+- 两个解释器的 branch-aware package coverage 均为 90.86%，超过配置的 85% 门槛。
+- Ruff format/check、strict Pyright、Bandit 和去除 editable 项目后的 locked runtime
+  pip-audit 均通过；pip-audit 未发现已知第三方依赖漏洞。
+- 最终哈希约束构建生成 `mini_code_agent-0.13.0a0-py3-none-any.whl`，大小 145319 bytes，
+  SHA-256 为 `0192ff3fa003ed1332d364fc29a8d173b8f9fd8e187e682aa81165dbd8684d01`；
+  `mini_code_agent-0.13.0a0.tar.gz` 大小 624112 bytes，SHA-256 为
+  `b751e177b9827538400ab68f0922c323857c8d7ba65f551a32baafb455264e71`。
+- 上述 exact wheel/sdist 在 Python 3.12/3.13 的四组隔离环境中均通过 console-script
+  smoke，并验证 `SkillCatalog` 与 `ToolHookRunner` 可从安装包导入。
+- GitHub CI、tag、prerelease 和远端 asset digest 尚未发生，必须在远程验证后回填。

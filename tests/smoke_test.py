@@ -2,11 +2,13 @@ import shutil
 import subprocess
 
 from mini_code_agent import __version__
+from mini_code_agent.hooks import ToolHookRunner
 from mini_code_agent.repair import (
     AgentRepairWorker,
     RepairActionGuard,
     RepairRuntime,
 )
+from mini_code_agent.skills import SkillCatalog
 from mini_code_agent.testing import PytestRunner
 from mini_code_agent.tools import RunTestsTool
 
@@ -15,6 +17,8 @@ def verify_installed_package() -> None:
     assert AgentRepairWorker.__name__ == "AgentRepairWorker"
     assert RepairActionGuard.__name__ == "RepairActionGuard"
     assert RepairRuntime.__name__ == "RepairRuntime"
+    assert SkillCatalog.__name__ == "SkillCatalog"
+    assert ToolHookRunner.__name__ == "ToolHookRunner"
     assert PytestRunner.__name__ == "PytestRunner"
     assert RunTestsTool.__name__ == "RunTestsTool"
     executable = shutil.which("mini-code-agent")
