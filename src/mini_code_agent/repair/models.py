@@ -10,6 +10,8 @@ from mini_code_agent.agent.models import StopReason
 from mini_code_agent.testing.models import (
     ProfileTarget,
     PytestCounts,
+    PytestDiagnostic,
+    PytestDiagnosticOutcome,
     PytestExecutionStatus,
     PytestReportStatus,
 )
@@ -88,6 +90,8 @@ class RepairTestSummary(BaseModel):
     status: PytestExecutionStatus
     report_status: PytestReportStatus
     counts: PytestCounts
+    diagnostics: tuple[PytestDiagnostic, ...] = Field(default=(), max_length=100)
+    diagnostics_truncated: bool = False
     failure_sha256: str | None = Field(default=None, pattern=_SHA256_PATTERN)
 
     @model_validator(mode="after")
@@ -99,6 +103,19 @@ class RepairTestSummary(BaseModel):
         )
         if is_repairable_failure != (self.failure_sha256 is not None):
             raise ValueError("test failure fingerprint is inconsistent")
+        failure_count = sum(
+            item.outcome is PytestDiagnosticOutcome.FAILURE for item in self.diagnostics
+        )
+        error_count = sum(
+            item.outcome is PytestDiagnosticOutcome.ERROR for item in self.diagnostics
+        )
+        if (
+            (is_repairable_failure and not self.diagnostics)
+            or (not is_repairable_failure and self.diagnostics)
+            or failure_count > self.counts.failed
+            or error_count > self.counts.errors
+        ):
+            raise ValueError("test diagnostics are inconsistent")
         return self
 
 

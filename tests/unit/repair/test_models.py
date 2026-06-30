@@ -17,6 +17,8 @@ from mini_code_agent.repair.models import (
 )
 from mini_code_agent.testing.models import (
     PytestCounts,
+    PytestDiagnostic,
+    PytestDiagnosticOutcome,
     PytestExecutionStatus,
     PytestReportStatus,
 )
@@ -113,6 +115,16 @@ def test_attempt_record_requires_matching_failure_fingerprint() -> None:
     assert record.test.status is PytestExecutionStatus.PASSED
 
 
+def test_test_summary_requires_failure_diagnostics() -> None:
+    with pytest.raises(ValidationError, match="diagnostics are inconsistent"):
+        RepairTestSummary(
+            status=PytestExecutionStatus.FAILED,
+            report_status=PytestReportStatus.COMPLETE,
+            counts=PytestCounts(total=1, passed=0, failed=1, errors=0, skipped=0),
+            failure_sha256=SHA,
+        )
+
+
 def test_result_succeeds_only_for_trusted_terminal_reasons() -> None:
     assert repair_result(RepairStopReason.REPAIRED).succeeded is True
     assert repair_result(RepairStopReason.ALREADY_PASSING).succeeded is True
@@ -149,6 +161,16 @@ def failed_summary() -> RepairTestSummary:
         status=PytestExecutionStatus.FAILED,
         report_status=PytestReportStatus.COMPLETE,
         counts=PytestCounts(total=1, passed=0, failed=1, errors=0, skipped=0),
+        diagnostics=(
+            PytestDiagnostic(
+                outcome=PytestDiagnosticOutcome.FAILURE,
+                test_name="test_add",
+                file="tests/test_calculator.py",
+                line=4,
+                message="assert -1 == 3",
+                details="left = -1, right = 3",
+            ),
+        ),
         failure_sha256=SHA,
     )
 
