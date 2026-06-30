@@ -50,8 +50,8 @@ unit one responsibility.
 1. The Repair session receives one explicit approval before Provider or test execution.
 2. The repository must be clean at admission. Staged, unstaged, untracked, renamed, deleted,
    unmerged, or submodule changes reject the session.
-3. Every editable path is an existing regular workspace file, is unique after normalization, and
-   is listed explicitly. Directory scopes and wildcard scopes are not accepted.
+3. Every editable path is an existing Git-tracked regular workspace file, is unique after
+   normalization, and is listed explicitly. Directory scopes and wildcard scopes are not accepted.
 4. The Repair worker's governed executor has a `RepairActionGuard` with the same scope
    fingerprint as the coordinator.
 5. The guard permits read-only actions, permits writes only when every preview resource is one
@@ -145,6 +145,21 @@ The guard sees trusted Tool preview resources rather than parsing arbitrary Tool
 denial returns the existing generic `permission_denied` ToolResult so resource policy details are
 not exposed to the model.
 
+### `mini_code_agent.git` tracked-path evidence
+
+`GitService.tracked_paths(paths)` adds one fixed read-only query for exact, already
+Workspace-validated paths. `GitClient` invokes:
+
+```text
+git <hardened-prefix> ls-files --error-unmatch -z -- <exact-path>...
+```
+
+The query has the existing timeout and output budgets, rejects malformed UTF-8/NUL output, and
+requires the returned normalized set to equal the requested set exactly. Model-controlled
+wildcards and directories never reach Git. This closes the ignored-file gap: a clean status does
+not reveal edits to an ignored file, so ignored or otherwise untracked paths cannot enter a Repair
+scope.
+
 ### `mini_code_agent.repair.fingerprint`
 
 Failure identity is canonical SHA-256 over:
@@ -219,9 +234,10 @@ After approval:
 1. read Git status;
 2. require a clean repository and no submodule state;
 3. revalidate every editable path through the Workspace to catch approval-time drift;
-4. verify the worker scope fingerprint;
-5. record a required `RepairStarted` journal event;
-6. run baseline tests and compare pre/post Git evidence.
+4. require the hardened tracked-path query to return every exact editable path;
+5. verify the worker scope fingerprint;
+6. record a required `RepairStarted` journal event;
+7. run baseline tests and compare pre/post Git evidence.
 
 Persistence failure is fail-closed. Best-effort UI event publication is separate from the
 required journal, matching the existing Agent runtime pattern.
@@ -307,6 +323,7 @@ start a new approved session. This is fail-closed and avoids replaying writes.
 
 - bounds and cross-field validation;
 - canonical scope ordering and duplicate rejection;
+- exact tracked-path parsing and ignored/untracked path rejection;
 - stable fingerprint under diagnostic reordering and unstable detail changes;
 - different execution/report/count/message inputs produce different fingerprints.
 
