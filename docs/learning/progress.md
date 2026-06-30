@@ -594,3 +594,40 @@
   `071ea0556fa294cddbadc9c5698a79fb9a104b7d`。GitHub prerelease
   <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.12.0-alpha.0> 已上传 wheel
   与 sdist，远端 asset digest 与上述本地 smoke 制品一致。
+
+## M5a Governed Skills and Hooks Notes
+
+- Skill 不是“一个会执行的插件”，而是带 source/trust/version/SHA 的不可信 Markdown
+  数据。`list_skills` 只给 descriptor，`load_skill` 显式消耗 context。
+- managed/user/project 是宿主选择的 provenance，不由 YAML 声明。qualified ID 避免
+  project Skill 静默覆盖 user/managed Skill；同 source 冲突全部 quarantine。
+- restricted PyYAML 与 Pydantic 分两层：前者拒绝 duplicate key、alias、custom tag 和
+  非字符串 key，后者拒绝 unknown field、非法 name/SemVer 和越界文本。
+- discovery 与 load 之间存在 TOCTOU。load 除 SHA 外还重验 root/dir/file、reparse、
+  open-handle device/inode/ctime、metadata 和 byte count；漂移必须 rediscover。
+- Hook 授权是 monotonic：pre-Hook 的 continue 只表示进入后续 Policy，不是 allow；
+  block/timeout/exception/invalid/audit failure 都在 Tool 前 fail closed。
+- post-Hook 发生在 ToolResult 已产生之后，因此普通失败只能隔离并继续 observer，不能把
+  已完成副作用改写成“未执行”。取消仍传播，调用方保留不确定边界。
+- Hook audit 不保存 arguments、resources、diff、result、Skill body 或 exception text。
+  M5a 只有 null/recording sink；没有 `run_id/turn` 的 Tool API 前不虚构 durable audit。
+- project command/HTTP/prompt Hook、动态 Python import、Skill supporting files 和 MCP
+  均明确不在 M5a 范围。
+
+## M5a Exercises
+
+1. 跟踪 project Skill 从 `SKILL.md` 到 descriptor，再到 fingerprint-required ToolResult。
+2. 替换相同字节文件，比较 SHA 与 file identity 分别能证明什么。
+3. 让 Skill 指示写文件，证明正文可影响模型意图但不能改变 Policy authority。
+4. 让 pre-Hook continue 配合 deny Policy，定位最终拒绝发生在哪一层。
+5. 让 pre/post Hook 分别 timeout，解释为什么前者阻止 Tool、后者保留 ToolResult。
+6. 设计 command Hook 时列出进程 argv、环境、cwd、输出、timeout、approval 和 sandbox
+   必须新增的边界，说明为什么不能直接 `subprocess`。
+
+## M5a Provisional Local Verification
+
+- Skill/Hook model、parser、catalog、lazy load、Tool、runner、Policy integration 和真实 Agent
+  集成测试已加入；完整发布数字在 Python 3.12/3.13 与制品 smoke 完成后回填。
+- 当前完整开发套件通过；Windows 无 symlink privilege 的用例按能力条件跳过。
+- Ruff format/check 与 strict Pyright 已通过。Bandit、pip-audit、coverage、跨解释器制品
+  smoke、GitHub CI、tag、release 和 asset digest 仍需按发布流程验证后才能写成事实。

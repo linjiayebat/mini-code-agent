@@ -2,13 +2,14 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M4c provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M5a provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
 > context admission, hardened read-only Git evidence, governed Pytest diagnostics, versioned SQLite
 > Session/Trace persistence, fail-closed Checkpoint/Resume, and a host-controlled bounded Repair
-> loop. OS sandboxing, shell-string execution, automatic Repair resume, and live-provider CI are
-> not implemented.
+> loop, provenance-aware lazy Skills, and deterministic host-registered Tool Hooks. OS sandboxing,
+> shell-string execution, project-provided executable Hooks, automatic Repair resume, MCP, and
+> live-provider CI are not implemented.
 
 ## Requirements
 
@@ -202,6 +203,20 @@ bounded. Failed changes remain in the working tree for inspection; the runtime n
 commits, resets, cleans, or automatically resumes an interrupted Repair. See
 `docs/architecture/bounded-repair-loop.md`.
 
+## Governed Skills and Hooks
+
+Skills are bounded direct-child `SKILL.md` files discovered only from host-configured roots.
+Strict UTF-8, restricted YAML, Pydantic metadata, source-qualified IDs, regular-file checks, file
+identity, and SHA-256 protect the discovery/load contract. `list_skills` exposes metadata only;
+`load_skill` requires the observed fingerprint and returns explicitly labelled untrusted
+Markdown. Skill content never registers executable capabilities or bypasses Tool Policy.
+
+Tool Hooks are typed async handlers registered by trusted host code. Pre-Hooks may continue or
+block, but continue still passes through ordinary Policy and approval. Post-Hooks observe the
+actual result; timeout, exception, or invalid return cannot replace it. Repository command/HTTP/
+prompt Hooks and dynamic Python imports are not supported. In-process Hooks have the Agent
+process authority and are not sandboxed. See `docs/architecture/governed-extensions.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -219,6 +234,7 @@ commits, resets, cleans, or automatically resumes an interrupted Repair. See
 - Read-only Git: `docs/architecture/readonly-git.md`
 - Governed test execution: `docs/architecture/governed-test-execution.md`
 - Bounded Repair loop: `docs/architecture/bounded-repair-loop.md`
+- Governed Skills and Hooks: `docs/architecture/governed-extensions.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
@@ -230,6 +246,7 @@ commits, resets, cleans, or automatically resumes an interrupted Repair. See
 - Hardened read-only Git ADR: `docs/adr/0009-hardened-readonly-git.md`
 - Fixed Pytest/JUnit boundary ADR: `docs/adr/0010-fixed-pytest-junit-boundary.md`
 - Host-controlled bounded Repair ADR: `docs/adr/0011-host-controlled-bounded-repair.md`
+- Inert Skills and host Hooks ADR: `docs/adr/0012-inert-skills-host-hooks.md`
 
 ## License
 

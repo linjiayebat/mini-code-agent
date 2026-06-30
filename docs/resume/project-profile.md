@@ -3,8 +3,9 @@
 > 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider、M2a 只读 Workspace/Tool
 > Registry、M2b 受治理文件写入、M2c argv 命令执行与 M3a 确定性 Context Budget
 > 、M3b 版本化 Session/追加式 Trace、M3c Checkpoint/Resume、M4a hardened 只读 Git
-> 、M4b 受治理 Pytest 诊断及 M4c 宿主控制的有限 Repair 已完成；Shell 字符串、OS 沙箱、
-> 自动 Repair Resume 和真实凭证联调尚未实现。`v0.12.0-alpha.0` GitHub prerelease 已发布；
+> 、M4b 受治理 Pytest 诊断、M4c 宿主控制的有限 Repair 及 M5a 惰性 Skills/Tool Hooks
+> 已完成；Shell 字符串、项目可执行 Hook、OS 沙箱、MCP、自动 Repair Resume 和真实凭证
+> 联调尚未实现。`v0.12.0-alpha.0` GitHub prerelease 已发布；M5a 的 v0.13 发布证据待门禁完成后回填。
 > 本地与 Ubuntu/Windows × Python 3.12/3.13 远程 CI 已成功，wheel 与 sdist 已完成四组
 > 隔离安装 smoke，远端 asset digest 与本地摘要一致。
 >
@@ -14,7 +15,10 @@
 
 正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、哈希防冲突 Write/Edit、受治理 argv Command、hardened Git status/diff 和固定 Profile Pytest 诊断组成的代码理解、修改与验证链路；每次模型调用前通过确定性 Context Budget 限制请求，并以 SQLite schema v3、required EventJournal、事务式追加 Trace、稳定 Checkpoint 和 fail-closed Resume 管理长任务状态。M4c 在 Agent 外增加宿主控制的有限 Repair 状态机，以 clean/tracked exact scope、pre-policy ActionGuard、Git 前后证据、固定 Pytest、失败指纹和多维预算完成“基线失败 -> 一次修改 -> 宿主验证 -> 有限重试/停止”闭环。
 
-下一阶段将实现 Skills/Hooks 与 MCP，并继续以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，为 Subagent 与 Worktree 扩展提供稳定边界。
+M5a 进一步加入 source-qualified Skill Catalog：严格解析 `SKILL.md`，只暴露 metadata，
+按 SHA/文件身份惰性重验并返回标记为不可信的 Markdown；同时以 typed async Hook runner
+把宿主注册的 veto/observer 接入 Tool 治理链，保证 continue 不能绕过 Policy、post 失败
+不能改写结果。下一阶段将实现 MCP，并继续为 Subagent 与 Worktree 提供稳定边界。
 
 ## 2. 项目定位
 
@@ -32,7 +36,7 @@
 M0 至 M4c 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
 Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
 JSON Schema Draft 2020-12、stdlib `sqlite3`、SQLite WAL/事务/索引、canonical JSON、SHA-256、
-Git porcelain v2、Pytest/JUnit XML、defusedxml、pytest-asyncio、Coverage、Ruff 与
+Git porcelain v2、Pytest/JUnit XML、defusedxml、PyYAML、pytest-asyncio、Coverage、Ruff 与
 Pyright；其余技术随对应里程碑落地。
 
 | 分类 | 技术 |
@@ -49,6 +53,7 @@ Pyright；其余技术随对应里程碑落地。
 | 可观测性 | 类型化 started/completed 事件、required EventJournal、追加式 Trace、usage、SHA-256 链 |
 | Git 证据 | Git CLI、porcelain-v2 NUL parser、status/diff、hardened config |
 | 测试诊断与修复 | 固定 Pytest Profile、JUnit XML、双状态分类、有限 Repair 状态机、失败指纹、多维预算 |
+| 扩展治理 | restricted PyYAML、source-qualified Skill Catalog、SHA/文件身份重验、typed async Tool Hooks、monotonic authorization |
 | 测试与质量 | Pytest、pytest-asyncio、Coverage、Ruff、Pyright |
 | 构建与发布 | `uv`、`pyproject.toml`、GitHub Actions、SemVer、GitHub Release |
 | 文档与治理 | Markdown、ADR、威胁模型、贡献指南、Changelog |
@@ -67,7 +72,8 @@ Pyright；其余技术随对应里程碑落地。
 10. Hardened Git 证据与受治理 Pytest 结构化诊断。
 11. 宿主控制、精确作用域和可审计停止的有限 Repair Loop。
 12. 企业级质量门禁与发布工程。
-13. 面向 Skills、Hooks、MCP、Subagent、Worktree 的扩展架构。
+13. 惰性不可信 Skills 与单调授权 Tool Hooks。
+14. 面向 MCP、Subagent、Worktree 的扩展架构。
 
 ## 5. 亮点拆解
 
@@ -90,6 +96,7 @@ Pyright；其余技术随对应里程碑落地。
 | 只读 Git 证据 | Agent 修改前后需要可靠识别用户已有变更，但普通 Git 配置可在 status/diff 中执行 fsmonitor、external diff 或 textconv | argv-only Git CLI、`--porcelain=v2 -z` 解析、exact top-level、`--no-optional-locks`、禁用 fsmonitor/ext-diff/textconv/submodule、联合输出/时间/条目/patch 上限、canonical SHA-256 | `git_status` 返回 typed branch/XY/rename/conflict/untracked；`git_diff` 返回 staged/unstaged patch | 避免 locale 文本误解析、父仓库越界、配置驱动代码执行、可选 index 写入和误将截断 patch 当完整证据 | 27 项 Git 单测、4 项 Tool 单测、1 项真实 Agent 集成；恶意扩展零执行，status/diff 前后 index 字节与纳秒 mtime 不变 |
 | 受治理 Pytest 诊断 | 文件写完不等于任务完成，但直接开放测试命令会引入任意 argv、插件和项目代码执行风险 | fixed `PytestProfile`、`python -I -B`、禁用 ambient plugin/cache、Workspace target、execute 默认 deny/独立审批、进程预算、`defusedxml` bounded JUnit parser、process/report 双状态 | 模型只选测试文件/目录；批准后运行真实 Pytest，返回 exit 分类、计数和有界 failure/error diagnostics，并在所有路径清理报告 | 将脆弱终端文本解析改为机器协议；区分测试失败、runner 失败、无测试和报告损坏；阻止模型控制解释器/参数/插件 | 95 项新增测试使全套达到 678 passed；真实 deny/approve/reject/non-interactive/Agent+Trace 集成通过；Python 3.12/3.13 各通过，90.25% 分支覆盖率，四组 artifact smoke |
 | 宿主控制的有限 Repair Loop | 诊断可用后，若让模型自行决定改什么、何时测试和是否重试，会形成无界反馈、覆盖用户改动或用文字冒充成功 | 独立 `RepairRuntime`、clean repository、literal exact tracked scope、pre-policy `RepairActionGuard`、固定 Pytest、Git/Workspace 前后证据、canonical failure fingerprint、attempt/time/patch/prompt/repeated-failure 预算、SQLite schema v3 Repair hash chain | 先跑 baseline；每轮只允许一次 Agent read/edit；宿主验证 patch 和测试无副作用后重测，只在完整 passing evidence 下成功，否则以 typed reason 停止 | 阻止 scope 外写入、execute/network、自声明成功、staged/untracked/ignored/submodule/branch 漂移、重复失败和测试残留修改；中断会话不自动重放 | 真实集成覆盖一次缺陷修复、越权写入在审批/落盘前拒绝、dirty repo 在 Provider/Pytest 前拒绝、测试修改仓库即使通过也停止；Python 3.12/3.13 本地各 798 passed、6 个 Windows symlink 条件跳过，3.13 分支覆盖率 90.88%；未虚构 benchmark 提升率 |
+| 惰性 Skills 与单调授权 Hooks | 仓库扩展既会占用上下文，也可能通过静默覆盖、动态导入或生命周期回调绕过权限 | restricted PyYAML/Pydantic、direct-child regular-file/reparse 检查、source-qualified ID、SHA-256 + file identity TOCTOU 重验、只读 list/load Tool、async Protocol Hook、稳定优先级、timeout、bounded audit | 模型先发现 metadata，再按 fingerprint 加载 labelled untrusted Markdown；宿主 pre-Hook 可 veto，post-Hook 可观察 | 阻止 Skill 注册执行能力、跨来源 shadow、内容漂移、无界扫描和 Hook 提权；pre 失败在副作用前关闭，post 失败不伪造执行事实 | 单元覆盖 YAML/路径/冲突/漂移/排序/超时/取消/审计；真实 Agent 证明恶意 Skill 不能绕过 deny、pre 阻断零落盘、post 失败后结果与后续 observer 保留；最终 CI/Release 数字待回填 |
 | 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | v0.12：Python 3.12/3.13 本地各 798 通过、6 项 symlink 条件跳过，90.88% 分支覆盖率，Bandit/pip-audit 与四组 artifact smoke 通过；PR/main CI 的 Ubuntu/Windows × 3.12/3.13 与 quality 全成功，prerelease 及两个校验摘要一致的制品已发布 |
 | 可扩展 Harness | Skills、Hooks、MCP、Subagent 会增加控制流复杂度 | 稳定 Protocol、EventBus、能力声明、依赖倒置 | 在不侵入 Agent Core 的前提下增加能力 | 避免扩展绕过权限、Trace 和 Session | 插件合约测试；扩展数量后续回填 |
 
@@ -149,11 +156,21 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 
 “Framework-light 不是拒绝依赖。我会使用 Pydantic、HTTP Client、Typer、SQLite 等成熟基础设施，但核心状态机、工具协议、权限模型和 Session 格式由项目控制，兼顾透明度与开发效率。”
 
-### 7.9 企业级体现在哪里
+### 7.9 Skills 与 Hooks 的安全边界
+
+“我没有把 Skill 当成可动态 import 的插件。项目只扫描宿主指定 root 的一层
+`SKILL.md`，用 restricted YAML、Pydantic、source-qualified ID、regular-file 检查和
+SHA/file identity 重验形成惰性数据协议；正文明确标成 untrusted，仍受 Tool Policy。
+Hook 首版也只接受宿主直接注册的 typed async handler。pre-Hook 只能 veto，continue 仍
+经过 Policy/approval；post-Hook 失败不能覆盖已产生的 ToolResult。项目 command Hook 和
+durable Hook audit 要等独立进程治理及 run/turn context 合同完成，不能把 in-process
+callback 描述成 sandbox。”
+
+### 7.10 企业级体现在哪里
 
 “企业级不是功能数量，而是边界清晰、失败可诊断、状态可恢复、安全策略可测试、发布可重复。项目设置严格类型、测试覆盖率门槛、跨平台 CI、安全模型、SemVer 和发布 smoke test。”
 
-### 7.10 如何避免过度设计
+### 7.11 如何避免过度设计
 
 “首版先完成单 Agent 的最小完整闭环。Skills、Hooks、MCP、Subagent 和 Worktree 只沿已有 Tool、Event、Policy、Session 协议接入，不能绕过权限与 Trace。”
 
@@ -210,6 +227,12 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 - 以 SQLite schema v3 独立记录 Repair lifecycle hash chain；真实集成验证一次缺陷修复、
   scope 外写入在审批和落盘前拒绝、dirty repo 零 Provider/Pytest，以及测试修改仓库即使
   报告通过也不能声明成功。
+- 实现 provenance-aware 惰性 Skills：restricted YAML/Pydantic 校验、qualified source ID、
+  regular-file/reparse 防护与 SHA/file identity 重验；正文只通过只读 Tool 以
+  `untrusted_markdown` 返回，恶意指令无法绕过 deny Policy。
+- 实现 monotonic authorization Tool Hooks：pre-Hook 仅 continue/veto 且 timeout/异常
+  fail closed，post-Hook 错误隔离并保留原始 ToolResult；bounded audit 不记录参数、结果、
+  Skill 正文或原始异常。
 - Python 3.12/3.13 各 678 项通过、5 项因 Windows symlink 权限跳过，分支覆盖率
   90.25%；Bandit/pip-audit 与 wheel/sdist 四组隔离安装 smoke 通过。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
