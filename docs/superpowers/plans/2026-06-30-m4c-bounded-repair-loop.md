@@ -854,7 +854,7 @@ Build wheel and sdist with `build-constraints.txt --require-hashes`, compute SHA
 artifact separately on Python 3.12 and 3.13, run `tests/smoke_test.py`, and verify
 `mini-code-agent --version` reports `0.12.0a0`.
 
-- [ ] **Step 6: Complete plan, merge, tag, and publish**
+- [x] **Step 6: Complete plan, merge, tag, and publish**
 
 Mark checkboxes, commit evidence, fast-forward merge to `main`, rerun merged verification, tag
 `v0.12.0-alpha.0`, push `main` and tag, create a GitHub prerelease with exact wheel/sdist assets,

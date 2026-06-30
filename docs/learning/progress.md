@@ -14,7 +14,7 @@
 | L9 Skills and Hooks | Not started | |
 | L10 MCP | Not started | |
 | L11 Subagent and Worktree | Not started | |
-| L12 CI, benchmark and release | In progress | v0.11 GitHub prerelease and Windows/Linux CI succeeded; benchmark pending |
+| L12 CI, benchmark and release | In progress | v0.12 GitHub prerelease and Windows/Linux CI succeeded; benchmark pending |
 
 ## L0 Notes
 
@@ -582,4 +582,15 @@
 - 代码审查新增迁移失败保持 v2 可重试、成功终态必须有可信测试证据、editable path 单项
   1 KiB 上限回归。主分支初始 CI `28465232075` 暴露 Session projection/event 双快照竞态；
   Session 与 Repair 验证已改为单 SQLite 只读事务，write contention 统一使 Resume plan
-  stale。最终 artifact smoke、远程 CI 和 GitHub prerelease 证据待发布后回填。
+  stale。
+- 哈希约束构建生成 `mini_code_agent-0.12.0a0-py3-none-any.whl`
+  (`77c52333421cf367201d5bdb7c24efaa1b0caa39502caea94cf833115ae588cd`) 和
+  `mini_code_agent-0.12.0a0.tar.gz`
+  (`f6534836943eed929aa0fae61f50aaa1ecb83d9cf475419ca119bdcdd44ddec8`)；二者在 Python
+  3.12/3.13 的四组隔离安装 smoke 均通过。
+- 修复 PR CI `28466399363` 与最终 main CI `28466523593` 的 quality、Ubuntu/Windows ×
+  Python 3.12/3.13 五个 job 全部通过。
+- Annotated tag `v0.12.0-alpha.0` 解引用到
+  `071ea0556fa294cddbadc9c5698a79fb9a104b7d`。GitHub prerelease
+  <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.12.0-alpha.0> 已上传 wheel
+  与 sdist，远端 asset digest 与上述本地 smoke 制品一致。
