@@ -46,17 +46,19 @@ plugin, but the first test runner should depend only on Pytest's built-in report
 6. The dedicated runner uses a minimal inherited environment and forces
    `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`. Only host-configured trusted plugins may be added with fixed
    `-p` arguments.
-7. Time, combined output bytes, report bytes, test-case count, diagnostic count, and text fields
+7. Pytest's cache provider is disabled so the harness itself does not create `.pytest_cache`.
+   Repository tests remain free to mutate the workspace after approval.
+8. Time, combined output bytes, report bytes, test-case count, diagnostic count, and text fields
    are bounded.
-8. The JUnit report is untrusted. It is read as bounded bytes, must be strict UTF-8, rejects DTD and
+9. The JUnit report is untrusted. It is read as bounded bytes, must be strict UTF-8, rejects DTD and
    entity declarations, and is parsed only after these checks.
-9. Report corruption does not erase the process result. The response preserves execution status
+10. Report corruption does not erase the process result. The response preserves execution status
    and marks diagnostics as missing, invalid, unsafe, or too large.
-10. Temporary report paths are host-created, omitted from tool results, and cleaned on success,
+11. Temporary report paths are host-created, omitted from tool results, and cleaned on success,
     failure, timeout, output overflow, parser failure, and cancellation.
-11. Test stdout, stderr, traceback details, and source paths can contain repository secrets. They
+12. Test stdout, stderr, traceback details, and source paths can contain repository secrets. They
     are returned to the current model call but are not written to bounded lifecycle Trace events.
-12. Running tests executes arbitrary repository code with the Mini Code Agent process's OS
+13. Running tests executes arbitrary repository code with the Mini Code Agent process's OS
     identity. Approval and resource limits reduce accidental execution and resource abuse; they do
     not provide filesystem, process, credential, or network isolation.
 
@@ -86,6 +88,7 @@ The fixed command shape is:
 ```text
 <host-python> -I -m pytest
   -q --disable-warnings --maxfail=<host-value>
+  -p no:cacheprovider
   --junitxml=<host-temporary-file>
   [-p <host-trusted-plugin>]...
   -- [validated-target]...
@@ -187,4 +190,3 @@ command argument, so the host-only report path does not weaken a policy predicat
   resource budget.
 - Approval is authorization, not isolation. It answers whether an action may run, not what the
   resulting process can access.
-

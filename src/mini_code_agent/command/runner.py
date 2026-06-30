@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import signal
 import subprocess  # nosec B404
 import time
@@ -15,6 +16,9 @@ from mini_code_agent.command.models import CommandLimits, CommandRequest, Comman
 # `subprocess` supplies process flags only; execution remains argv-only.
 _READ_CHUNK_BYTES = 64 * 1024
 _OUTPUT_EXIT_GRACE_SECONDS = 0.1
+_ENVIRONMENT_NAME = re.compile(r"^[A-Z_][A-Z0-9_]{0,127}$")
+_MAX_ENVIRONMENT_OVERRIDES = 64
+_MAX_ENVIRONMENT_VALUE_CHARS = 4096
 
 
 @dataclass(slots=True)
@@ -47,10 +51,19 @@ class CommandRunner:
         *,
         limits: CommandLimits | None = None,
         environment: Mapping[str, str] | None = None,
+        environment_overrides: Mapping[str, str] | None = None,
     ) -> None:
         self._limits = limits or CommandLimits()
         source_environment = os.environ if environment is None else environment
         self._environment = build_minimal_environment(source_environment)
+        overrides: Mapping[str, str] = (
+            {} if environment_overrides is None else environment_overrides
+        )
+        if len(overrides) > _MAX_ENVIRONMENT_OVERRIDES or any(
+            not _valid_environment_override(name, value) for name, value in overrides.items()
+        ):
+            raise ValueError("trusted environment override is invalid")
+        self._environment.update(overrides)
 
     @property
     def limits(self) -> CommandLimits:
@@ -316,3 +329,13 @@ class CommandRunner:
                 await process.wait()
         except TimeoutError:
             os.killpg(process.pid, signal.SIGKILL)
+
+
+def _valid_environment_override(name: object, value: object) -> bool:
+    return (
+        isinstance(name, str)
+        and isinstance(value, str)
+        and bool(_ENVIRONMENT_NAME.fullmatch(name))
+        and len(value) <= _MAX_ENVIRONMENT_VALUE_CHARS
+        and "\0" not in value
+    )

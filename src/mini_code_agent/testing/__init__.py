@@ -11,9 +11,11 @@ from mini_code_agent.testing.models import (
     PytestReportStatus,
     PytestRunResult,
 )
+from mini_code_agent.testing.pytest_runner import PytestCommandRunner, PytestRunner
 
 __all__ = [
     "ParsedPytestReport",
+    "PytestCommandRunner",
     "PytestCounts",
     "PytestDiagnostic",
     "PytestDiagnosticOutcome",
@@ -24,5 +26,6 @@ __all__ = [
     "PytestReportErrorCode",
     "PytestReportStatus",
     "PytestRunResult",
+    "PytestRunner",
     "parse_junit_report",
 ]

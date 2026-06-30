@@ -39,7 +39,7 @@ Ruff, strict Pyright.
 ### Task 1: Testing Contracts
 
 **Files:**
-- Create: `tests/unit/testing/test_models.py`
+- Create: `tests/unit/testing/test_pytest_models.py`
 - Create: `src/mini_code_agent/testing/models.py`
 - Create: `src/mini_code_agent/testing/errors.py`
 - Create: `src/mini_code_agent/testing/__init__.py`
@@ -78,7 +78,7 @@ result = PytestRunResult(
 Run:
 
 ```powershell
-python -m uv run pytest tests/unit/testing/test_models.py -q
+python -m uv run pytest tests/unit/testing/test_pytest_models.py -q
 ```
 
 Expected: collection fails because `mini_code_agent.testing` does not exist.
@@ -92,8 +92,8 @@ validators. `PytestProfile.python_executable` must be absolute; trusted plugins 
 - [x] **Step 4: Verify GREEN and commit**
 
 ```powershell
-python -m uv run pytest tests/unit/testing/test_models.py -q
-git add src/mini_code_agent/testing tests/unit/testing/test_models.py
+python -m uv run pytest tests/unit/testing/test_pytest_models.py -q
+git add src/mini_code_agent/testing tests/unit/testing/test_pytest_models.py
 git commit -m "feat: define pytest execution contracts"
 ```
 
@@ -165,13 +165,13 @@ git commit -m "feat: parse bounded pytest junit reports"
 - Create: `tests/unit/testing/test_pytest_runner.py`
 - Create: `src/mini_code_agent/testing/pytest_runner.py`
 
-- [ ] **Step 1: Test trusted environment overrides first**
+- [x] **Step 1: Test trusted environment overrides first**
 
 Assert `CommandRunner(environment=..., environment_overrides=...)` preserves the minimal base,
 adds only explicit fixed values, rejects invalid names/NUL/oversized values, and cannot be changed
 through `CommandRequest`.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 python -m uv run pytest tests/unit/command/test_runner.py -k environment_override -q
@@ -179,12 +179,12 @@ python -m uv run pytest tests/unit/command/test_runner.py -k environment_overrid
 
 Expected: constructor rejects the unknown `environment_overrides` argument.
 
-- [ ] **Step 3: Implement trusted environment overrides**
+- [x] **Step 3: Implement trusted environment overrides**
 
 Validate at construction, merge after `build_minimal_environment`, and keep the resulting mapping
 private. Do not add environment fields to model-controlled command requests.
 
-- [ ] **Step 4: Write failing runner command-shape and classification tests**
+- [x] **Step 4: Write failing runner command-shape and classification tests**
 
 Inject a recording command runner and assert the request command starts with:
 
@@ -204,7 +204,7 @@ Inject a recording command runner and assert the request command starts with:
 Assert trusted `-p` pairs occur before a final `--`, targets follow it unchanged, cwd is the
 workspace root, and the preview uses `<managed-junit-report.xml>`.
 
-- [ ] **Step 5: Verify RED**
+- [x] **Step 5: Verify RED**
 
 ```powershell
 python -m uv run pytest tests/unit/testing/test_pytest_runner.py -q
@@ -212,25 +212,25 @@ python -m uv run pytest tests/unit/testing/test_pytest_runner.py -q
 
 Expected: import failure for `PytestRunner`.
 
-- [ ] **Step 6: Implement execution and cleanup**
+- [x] **Step 6: Implement execution and cleanup**
 
 Build a dedicated `CommandRunner` with profile limits and
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`. Create and close one random temporary XML file before launch;
 wrap command execution and report parsing in `try/finally`; unlink only that exact path. Classify
 timeout/output overflow before numeric exit codes.
 
-- [ ] **Step 7: Add RED tests for all result paths**
+- [x] **Step 7: Add RED tests for all result paths**
 
 Cover exits 0-5 and unknown, timeout, output overflow, command errors, valid report, missing report,
 invalid report, oversized report, cancellation, and temporary-path omission from serialized
 results.
 
-- [ ] **Step 8: Implement result preservation**
+- [x] **Step 8: Implement result preservation**
 
 Map parser errors to `PytestReportStatus` while preserving process status, exit, duration,
 stdout/stderr, and flags. Report-derived fields are empty when report status is not complete.
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 ```powershell
 python -m uv run pytest tests/unit/command tests/unit/testing -q

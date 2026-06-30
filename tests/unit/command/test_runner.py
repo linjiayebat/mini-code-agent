@@ -108,6 +108,42 @@ async def test_runner_respects_explicit_empty_environment(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
+async def test_runner_applies_trusted_environment_override(tmp_path: Path) -> None:
+    runner = CommandRunner(
+        environment=os.environ,
+        environment_overrides={"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
+    )
+
+    result = await runner.run(
+        request(
+            tmp_path,
+            "import os; print(os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD'])",
+        )
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout == f"1{os.linesep}"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"": "value"},
+        {"lowercase": "value"},
+        {"BAD-NAME": "value"},
+        {"VALID_NAME": "nul\0value"},
+        {"X" * 129: "value"},
+        {"VALID_NAME": "x" * 4097},
+    ],
+)
+def test_runner_rejects_invalid_trusted_environment_overrides(
+    overrides: dict[str, str],
+) -> None:
+    with pytest.raises(ValueError, match="environment override"):
+        CommandRunner(environment_overrides=overrides)
+
+
+@pytest.mark.asyncio
 async def test_runner_rejects_timeout_above_configured_limit(tmp_path: Path) -> None:
     runner = CommandRunner(limits=CommandLimits(max_timeout_seconds=1))
 
