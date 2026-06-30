@@ -456,11 +456,18 @@
 6. Change a file immediately after obtaining the status SHA-256 and explain why the fingerprint
    is evidence identity, not optimistic locking.
 
-## M4a Current Verification
+## M4a Local Verification
 
+- Full Python 3.12.13 and 3.13.14 development suite: 583 passed per interpreter; 4 Windows
+  symlink privilege skips per interpreter.
+- Python 3.13 branch-aware package coverage: 89.97%, above the configured 85% gate.
 - Git models/parser/client, Tool, and Agent focused suite: 32 passed.
 - Git plus Command regression suite: 56 passed.
 - Real Git extension suppression and byte-identical index tests: passed.
 - Ruff and strict Pyright: passed.
-- Dual-Python full suite, coverage, security, build, and artifact smoke evidence will be recorded
-  only after the `v0.10.0-alpha.0` release gates complete.
+- Bandit: no unsuppressed findings. pip-audit found no known dependency vulnerabilities; the
+  unpublished local package itself was skipped because it is not on PyPI.
+- Hashed build produced `mini_code_agent-0.10.0a0-py3-none-any.whl` and
+  `mini_code_agent-0.10.0a0.tar.gz`.
+- The exact wheel and sdist passed four isolated console-script smoke tests on Python 3.12 and
+  3.13.
