@@ -29,6 +29,7 @@ class RecordingCommandRunner:
         report: bytes | None = EMPTY_REPORT,
         error: CommandError | None = None,
         cancel: bool = False,
+        echo_report_path: bool = False,
     ) -> None:
         self.exit_code = exit_code
         self.timed_out = timed_out
@@ -36,6 +37,7 @@ class RecordingCommandRunner:
         self.report = report
         self.error = error
         self.cancel = cancel
+        self.echo_report_path = echo_report_path
         self.requests: list[CommandRequest] = []
         self.report_paths: list[Path] = []
 
@@ -53,7 +55,16 @@ class RecordingCommandRunner:
             raise asyncio.CancelledError
         if self.error is not None:
             raise self.error
-        if self.report is None:
+        if self.echo_report_path:
+            report_path.write_text(
+                f"""<testsuite>
+  <testcase name="test_path">
+    <failure message="{report_path.name}">{report_path}</failure>
+  </testcase>
+</testsuite>""",
+                encoding="utf-8",
+            )
+        elif self.report is None:
             report_path.unlink(missing_ok=True)
         else:
             report_path.write_bytes(self.report)
@@ -61,8 +72,14 @@ class RecordingCommandRunner:
             argv=request.argv,
             cwd=request.cwd_display,
             exit_code=self.exit_code,
-            stdout="captured stdout",
-            stderr="captured stderr",
+            stdout=(
+                f"captured stdout {report_path}" if self.echo_report_path else "captured stdout"
+            ),
+            stderr=(
+                f"captured stderr {report_path.name}"
+                if self.echo_report_path
+                else "captured stderr"
+            ),
             timed_out=self.timed_out,
             output_limit_exceeded=self.output_limit_exceeded,
             stdout_truncated=self.output_limit_exceeded,
@@ -104,6 +121,20 @@ def test_preview_argv_has_fixed_shape_and_managed_report_marker(
         "tests/unit",
         "tests/test_api.py",
     )
+
+
+def test_maximum_profile_and_targets_fit_64_argument_command_contract(
+    tmp_path: Path,
+) -> None:
+    profile = PytestProfile(
+        python_executable=(tmp_path / "host-python").resolve(),
+        trusted_plugins=tuple(f"plugin_{index}" for index in range(10)),
+    )
+    runner = PytestRunner(tmp_path, profile=profile)
+
+    argv = runner.preview_argv(tuple(f"tests/test_{index}.py" for index in range(32)))
+
+    assert len(argv) == 63
 
 
 @pytest.mark.asyncio
@@ -256,6 +287,30 @@ async def test_runner_propagates_cancellation_after_report_cleanup(
         await runner.run(())
 
     assert command_runner.report_paths[0].exists() is False
+
+
+@pytest.mark.asyncio
+async def test_runner_redacts_managed_report_path_echoes(
+    tmp_path: Path,
+) -> None:
+    command_runner = RecordingCommandRunner(
+        exit_code=1,
+        echo_report_path=True,
+    )
+    runner = PytestRunner(
+        tmp_path,
+        profile=profile_for(tmp_path),
+        command_runner=command_runner,
+    )
+
+    result = await runner.run(())
+
+    report_path = command_runner.report_paths[0]
+    serialized = result.model_dump_json()
+    assert str(report_path) not in serialized
+    assert report_path.as_posix() not in serialized
+    assert report_path.name not in serialized
+    assert serialized.count("<managed-junit-report.xml>") >= 4
 
 
 def test_profile_timeout_must_fit_runner_limits(tmp_path: Path) -> None:

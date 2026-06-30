@@ -48,19 +48,19 @@ class PytestLimits(BaseModel):
     max_report_bytes: int = Field(default=2 * 1024 * 1024, ge=1, le=8 * 1024 * 1024)
     max_cases: int = Field(default=10_000, ge=1, le=100_000)
     max_diagnostics: int = Field(default=100, ge=1, le=1000)
-    max_targets: int = Field(default=32, ge=1, le=64)
+    max_targets: int = Field(default=32, ge=1, le=32)
     max_message_chars: int = Field(default=4096, ge=1, le=4096)
-    max_details_chars: int = Field(default=16_384, ge=1, le=65_536)
+    max_details_chars: int = Field(default=16_384, ge=1, le=16_384)
 
 
 class PytestProfile(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     python_executable: Path = Field(default_factory=lambda: Path(sys.executable))
-    default_targets: tuple[ProfileTarget, ...] = Field(default=(), max_length=64)
+    default_targets: tuple[ProfileTarget, ...] = Field(default=(), max_length=32)
     timeout_seconds: int = Field(default=300, ge=1, le=3600)
     max_failures: int = Field(default=20, ge=1, le=1000)
-    trusted_plugins: tuple[PluginName, ...] = Field(default=(), max_length=16)
+    trusted_plugins: tuple[PluginName, ...] = Field(default=(), max_length=10)
 
     @model_validator(mode="after")
     def validate_profile(self) -> Self:

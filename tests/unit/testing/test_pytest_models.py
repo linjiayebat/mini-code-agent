@@ -40,9 +40,9 @@ def test_pytest_limits_are_bounded_and_frozen() -> None:
         ("max_report_bytes", 8 * 1024 * 1024 + 1),
         ("max_cases", 0),
         ("max_diagnostics", 1001),
-        ("max_targets", 65),
+        ("max_targets", 33),
         ("max_message_chars", 0),
-        ("max_details_chars", 65_537),
+        ("max_details_chars", 16_385),
     ],
 )
 def test_pytest_limits_reject_values_outside_hard_caps(field: str, value: int) -> None:
@@ -112,6 +112,26 @@ def test_pytest_profile_timeout_cannot_exceed_limits(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="timeout"):
         profile.validate_against(PytestLimits(max_timeout_seconds=30))
+
+
+def test_pytest_profile_rejects_more_than_32_default_targets(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValidationError):
+        PytestProfile(
+            python_executable=(tmp_path / "python").resolve(),
+            default_targets=tuple(f"tests/test_{index}.py" for index in range(33)),
+        )
+
+
+def test_pytest_profile_rejects_more_than_10_trusted_plugins(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValidationError):
+        PytestProfile(
+            python_executable=(tmp_path / "python").resolve(),
+            trusted_plugins=tuple(f"plugin_{index}" for index in range(11)),
+        )
 
 
 def test_pytest_counts_require_components_to_equal_total() -> None:

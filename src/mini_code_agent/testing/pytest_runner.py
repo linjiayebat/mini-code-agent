@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 import tempfile
 from contextlib import suppress
 from pathlib import Path
@@ -80,13 +82,14 @@ class PytestRunner:
             )
             command_result = await self._command_runner.run(request)
             parsed, report_status = self._parse_report(report_path)
+            parsed = _redact_report_diagnostics(parsed, report_path)
             return PytestRunResult(
                 status=_classify(command_result),
                 report_status=report_status,
                 exit_code=command_result.exit_code,
                 duration_ms=command_result.duration_ms,
-                stdout=command_result.stdout,
-                stderr=command_result.stderr,
+                stdout=_redact_report_path(command_result.stdout, report_path),
+                stderr=_redact_report_path(command_result.stderr, report_path),
                 timed_out=command_result.timed_out,
                 output_limit_exceeded=command_result.output_limit_exceeded,
                 counts=parsed.counts,
@@ -178,3 +181,47 @@ def _classify(result: CommandResult) -> PytestExecutionStatus:
     if result.exit_code is None:
         return PytestExecutionStatus.UNKNOWN_EXIT
     return statuses.get(result.exit_code, PytestExecutionStatus.UNKNOWN_EXIT)
+
+
+def _redact_report_diagnostics(
+    parsed: ParsedPytestReport,
+    report_path: Path,
+) -> ParsedPytestReport:
+    diagnostics = tuple(
+        item.model_copy(
+            update={
+                "test_name": _redact_report_path(item.test_name, report_path),
+                "class_name": (
+                    _redact_report_path(item.class_name, report_path)
+                    if item.class_name is not None
+                    else None
+                ),
+                "file": (
+                    _redact_report_path(item.file, report_path) if item.file is not None else None
+                ),
+                "message": _redact_report_path(item.message, report_path),
+                "details": _redact_report_path(item.details, report_path),
+            }
+        )
+        for item in parsed.diagnostics
+    )
+    return parsed.model_copy(update={"diagnostics": diagnostics})
+
+
+def _redact_report_path(value: str, report_path: Path) -> str:
+    candidates = sorted(
+        {str(report_path), report_path.as_posix(), report_path.name},
+        key=len,
+        reverse=True,
+    )
+    for candidate in candidates:
+        if os.name == "nt":
+            value = re.sub(
+                re.escape(candidate),
+                _REPORT_MARKER,
+                value,
+                flags=re.IGNORECASE,
+            )
+        else:
+            value = value.replace(candidate, _REPORT_MARKER)
+    return value

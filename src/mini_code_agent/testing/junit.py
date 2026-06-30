@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import os
 import stat
-import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Protocol
+
+from defusedxml import ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 from mini_code_agent.testing.errors import PytestReportError, PytestReportErrorCode
 from mini_code_agent.testing.models import (
@@ -15,6 +19,15 @@ from mini_code_agent.testing.models import (
 )
 
 _TRUNCATION_MARKER = "...[truncated]"
+
+
+class _XmlElement(Protocol):
+    tag: str
+    attrib: dict[str, str]
+
+    def __iter__(self) -> Iterator[_XmlElement]: ...
+
+    def itertext(self) -> Iterator[str]: ...
 
 
 def parse_junit_report(
@@ -32,8 +45,14 @@ def parse_junit_report(
         raise _report_error(PytestReportErrorCode.UNSAFE)
 
     try:
-        # Input is byte-bounded, strict UTF-8, and rejects DTD/entity declarations above.
-        root = ET.fromstring(text)  # nosec B314
+        root = ET.fromstring(
+            text,
+            forbid_dtd=True,
+            forbid_entities=True,
+            forbid_external=True,
+        )
+    except DefusedXmlException:
+        raise _report_error(PytestReportErrorCode.UNSAFE) from None
     except ET.ParseError:
         raise _report_error(PytestReportErrorCode.INVALID) from None
     if root.tag not in {"testsuite", "testsuites"}:
@@ -120,8 +139,8 @@ def _read_report(path: Path, limit: int) -> bytes:
 
 
 def _build_diagnostic(
-    case: ET.Element,
-    outcome: ET.Element,
+    case: _XmlElement,
+    outcome: _XmlElement,
     diagnostic_outcome: PytestDiagnosticOutcome,
     line: int | None,
     limits: PytestLimits,

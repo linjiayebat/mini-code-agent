@@ -2,9 +2,13 @@ import shutil
 import subprocess
 
 from mini_code_agent import __version__
+from mini_code_agent.testing import PytestRunner
+from mini_code_agent.tools import RunTestsTool
 
 
 def verify_installed_package() -> None:
+    assert PytestRunner.__name__ == "PytestRunner"
+    assert RunTestsTool.__name__ == "RunTestsTool"
     executable = shutil.which("mini-code-agent")
     assert executable is not None
     result = subprocess.run(
