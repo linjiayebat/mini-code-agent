@@ -4,6 +4,43 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+## [0.11.0-alpha.0] - 2026-06-30
+
+### Added
+
+- Immutable host-owned Pytest profiles with fixed executable, timeout, failure cap, defaults, and
+  trusted plugins.
+- Critical-risk `run_tests` Tool for bounded workspace-relative files and directories.
+- Typed Pytest process/report statuses, computed case counts, and bounded failure/error
+  diagnostics.
+- Bounded strict-UTF-8 JUnit parser with explicit missing/invalid/unsafe/too-large outcomes.
+- `defusedxml` parsing for the untrusted JUnit boundary.
+- Real policy, Pytest subprocess, AgentRuntime, and SQLite Trace integration coverage.
+
+### Changed
+
+- `CommandRunner` accepts constructor-only validated environment overrides for dedicated host
+  runners; model command requests still cannot provide environment values.
+- Test execution disables ambient Pytest plugin autoload and `.pytest_cache`; required plugins are
+  explicit host configuration.
+- M4b completes structured test execution and diagnostics. Automatic Repair remains M4c.
+
+### Security
+
+- Execute remains denied by default; interactive test runs require an explicit policy rule and
+  independent approval, while non-interactive `ASK` fails closed.
+- Model input cannot select the Python executable, arbitrary argv, cwd, environment, timeout,
+  plugin, failure cap, or JUnit path.
+- Test targets pass WorkspaceBoundary and `--`; node IDs, option-shaped components, duplicates,
+  links, and escape paths are rejected.
+- Time, combined output, report bytes, test cases, diagnostics, and diagnostic text are bounded.
+- JUnit rejects non-regular files, invalid UTF-8, DTD/entities, malformed XML, and contradictory
+  outcomes before returning typed data.
+- Temporary reports are omitted as result fields, direct path/name echoes are replaced, and files
+  are cleaned after success, errors, and cancellation.
+- Approval and fixed argv are explicitly not an OS sandbox; approved tests execute repository code
+  with the Agent user's authority.
+
 ## [0.10.0-alpha.0] - 2026-06-30
 
 ### Added

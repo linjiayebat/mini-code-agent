@@ -49,6 +49,14 @@
   inconsistent rows and projections.
 - Explicitly configured Secret values are scrubbed from bounded free-form stop errors before
   hashing and storage.
+- M4b test execution uses a host-owned Pytest profile; the model cannot select executables,
+  arbitrary options, cwd, environment, timeout, plugins, or report paths.
+- Test targets pass WorkspaceBoundary, execute policy, critical preview, and independent approval.
+  Ambient plugin autoload and Pytest cache writes are disabled.
+- Test time/output and JUnit bytes/cases/diagnostics/text are independently bounded. Reports reject
+  unsafe file types, invalid UTF-8, DTD/entities, malformed XML, and contradictory outcomes.
+- Pytest process status remains available when its report is missing or invalid; temporary report
+  cleanup runs on every exit path.
 
 ## Non-claims
 
@@ -84,5 +92,17 @@
   results. Their hashes provide identity, not confidentiality or authenticity.
 - `--no-optional-locks` prevents optional index refresh, but Git evidence remains a stale-able
   observation under concurrent filesystem mutation.
+- An approved Pytest run executes repository tests, `conftest.py`, and host-trusted plugins with
+  the Agent OS identity. Fixed argv, minimal environment, approval, and resource limits are not a
+  filesystem, process, credential, or network sandbox.
+- JUnit is untrusted because test code can tamper with its report. Bounded parsing does not prove
+  report provenance or prevent tests from exfiltrating data through stdout/stderr.
+- Exact managed-report path/name echoes are replaced before ToolResult serialization, but hostile
+  tests can encode or transform the value; output replacement is not a data-loss-prevention
+  boundary.
+- Disabling `.pytest_cache` prevents a harness-created cache only; project tests may still modify
+  the Workspace or host.
+- Lifecycle Trace excludes test payloads, but stable Checkpoints contain complete bounded
+  ToolResults as plaintext.
 - Configured-value scrubbing cannot detect unknown secrets, and SQLite is not encrypted at rest.
 - MCP connection does not establish trust.

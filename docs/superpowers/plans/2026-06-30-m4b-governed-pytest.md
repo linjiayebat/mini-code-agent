@@ -12,9 +12,8 @@ JUnit parsing, and a Pytest subprocess service. `RunTestsTool` validates model-s
 through `WorkspaceBoundary`, previews a fixed command, and delegates execution through the existing
 Tool Registry and `GovernedToolExecutor`.
 
-**Tech Stack:** Python 3.12/3.13, asyncio, Pydantic v2, stdlib `tempfile` and
-`xml.etree.ElementTree`, Pytest built-in JUnit XML, existing argv-only `CommandRunner`, Pytest,
-Ruff, strict Pyright.
+**Tech Stack:** Python 3.12/3.13, asyncio, Pydantic v2, stdlib `tempfile`, `defusedxml`, Pytest
+built-in JUnit XML, existing argv-only `CommandRunner`, Pytest, Ruff, strict Pyright.
 
 ---
 
@@ -350,24 +349,24 @@ git commit -m "test: verify governed pytest agent flow"
 - Modify: `uv.lock`
 - Modify: version assertions under `tests/`
 
-- [ ] **Step 1: Write architecture, threat boundary, and ADR**
+- [x] **Step 1: Write architecture, threat boundary, and ADR**
 
 Document fixed versus model-controlled inputs, policy flow, report trust, status separation,
 resource limits, plugin autoload behavior, cancellation cleanup, and the explicit no-sandbox
 nonclaim.
 
-- [ ] **Step 2: Update learning and resume evidence**
+- [x] **Step 2: Update learning and resume evidence**
 
 Add a Java/Flink mapping for prepared command profiles, machine protocols, independent failure
 domains, and bounded feedback. Add one resume highlight in the exact form: why used, technology,
 implemented function, measured improvement, solved problem, limitations, and test evidence.
 
-- [ ] **Step 3: RED version test, then bump**
+- [x] **Step 3: RED version test, then bump**
 
 Change the expected version to `0.11.0a0`, verify failure, then update `pyproject.toml`, package
 metadata, lockfile, README capability matrix, and Changelog.
 
-- [ ] **Step 4: Run focused and full local gates**
+- [x] **Step 4: Run focused and full local gates**
 
 ```powershell
 python -m uv lock --check
@@ -383,7 +382,7 @@ python -m pip_audit --strict --desc
 Expected: lock current; all tests pass on both Python versions; branch coverage is at least 85%;
 Ruff, strict Pyright, Bandit, and dependency audit report no failures.
 
-- [ ] **Step 5: Build and smoke exact artifacts**
+- [x] **Step 5: Build and smoke exact artifacts**
 
 Build wheel and sdist with hashes, install each artifact separately on Python 3.12 and 3.13, run
 `tests/smoke_test.py`, and verify `mini-code-agent --version` reports `0.11.0a0`.

@@ -542,6 +542,64 @@
 - Java 类比：porcelain parser 类似解析稳定 DTO 协议；`--` 类似 prepared statement
   把参数和控制语法分离；GitErrorCode 类似服务边界统一异常码。
 
+#### M4b 受治理 Pytest 与结构化诊断
+
+**前置知识**
+
+- Pytest 发现规则、exit code 0-5、fixture/`conftest.py` 与插件加载。
+- `asyncio.subprocess`、argv 与 shell string 的差异、进程树取消。
+- XML 的元素/属性/编码，以及 DTD/实体为什么属于不可信输入风险。
+- Pydantic frozen model、`Protocol`、`StrEnum` 和跨字段不变量。
+- Policy 的 allow/ask/deny、交互/非交互模式及审批与执行隔离。
+
+**本项目用到的知识**
+
+- 固定 `PytestProfile`：解释器、timeout、`maxfail`、默认 target 和可信插件均由宿主
+  配置，模型不能构造命令。
+- `python -I` 隔离用户 site 与 `PYTHON*` 启动影响；
+  `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` 禁止环境中的 entry-point 插件自动扩展执行面。
+- `-p no:cacheprovider` 避免 Harness 自己创建 `.pytest_cache`；不代表测试代码只读。
+- model target 经 `WorkspaceBoundary` 解析为现存文件/目录，并在 `--` 后传给 Pytest。
+- 进程状态和报告状态拆成两个 failure domain：测试 exit code 仍可保留，即使 JUnit
+  缺失、非法、不安全或过大。
+- JUnit 先做字节上限、普通文件、严格 UTF-8、DTD/实体拒绝，再用 `defusedxml` 解析；
+  计数从 `testcase` 重新计算，不相信 XML 汇总属性。
+- diagnostics 对用例数、条数、message 和 traceback 分别设限；报告临时路径在取消和
+  异常路径都清理。
+- stdout/stderr/diagnostics 会进入当前模型上下文，但生命周期 Trace 只记录
+  `ToolStarted/ToolCompleted`，不落测试正文。
+
+**Java/Flink/Spark SQL 映射**
+
+- 固定 Pytest profile 类似服务端 prepared statement：客户端只能绑定参数，不能改
+  SQL/命令结构。
+- JUnit XML 类似版本化 Kafka/Flink 事件协议；终端输出更像日志，不应靠正则当 DTO。
+- process status 与 report status 类似 Flink Job 状态和 Checkpoint 元数据状态：一个
+  成功或失败不能推导另一个。
+- timeout、输出字节、报告字节、case 数和 diagnostics 数类似多维 backpressure/
+  quota；只限制一项仍可能在其他维度耗尽资源。
+- Policy approval 类似鉴权，OS sandbox 类似运行时隔离；有权限执行不等于进程只能
+  访问 Workspace。
+
+**阅读顺序**
+
+1. `testing/models.py`：先看不可变预算、状态和结果一致性。
+2. `testing/junit.py`：跟踪不可信文件从 byte limit 到 typed diagnostic。
+3. `testing/pytest_runner.py`：看固定 argv、最小环境、状态分类和 `finally` 清理。
+4. `tools/run_tests.py`：看模型参数如何变成 Workspace target 和 ActionPreview。
+5. `tests/integration/test_governed_pytest_agent.py`：看 deny/ask、真实 Pytest、Agent
+   ToolResult 和 SQLite Trace 的完整边界。
+
+**练习**
+
+1. 分别制造 exit 1、2、3、4、5，解释为什么不能都叫“测试失败”。
+2. 修改 JUnit 的汇总 `tests="999"`，验证解析结果为什么仍由 `testcase` 决定。
+3. 写一个带 DTD 的 20 字节报告和一个超过字节上限的 DTD 报告，解释检查顺序。
+4. 在未配置 `pytest_asyncio.plugin` 时运行 async test，再作为 trusted plugin 配置，
+   比较显式依赖与 ambient plugin 的差异。
+5. 让测试打印一个 marker，检查 ToolResult 与 SQLite Trace，说明数据保存边界。
+6. 解释为什么 `-p no:cacheprovider` 不能支持“测试执行不修改工作区”的结论。
+
 ### L9：Skills 与 Hooks
 
 **理论**

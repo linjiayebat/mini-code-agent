@@ -2,16 +2,17 @@
 
 > 项目状态：M0 工程基础、M1 Agent Core、M1b 双 Provider、M2a 只读 Workspace/Tool
 > Registry、M2b 受治理文件写入、M2c argv 命令执行与 M3a 确定性 Context Budget
-> 、M3b 版本化 Session/追加式 Trace 及 M3c Checkpoint/Resume 已在本地完成；Shell 字符串、
-> OS 沙箱、真实凭证联调、远程 CI 和 GitHub Release 尚未执行。
+> 、M3b 版本化 Session/追加式 Trace、M3c Checkpoint/Resume、M4a hardened 只读 Git
+> 及 M4b 受治理 Pytest 诊断已完成；M4c 自动 Repair、Shell 字符串、OS 沙箱和真实凭证联调
+> 尚未实现。`v0.10.0-alpha.0` GitHub Release 与远程 CI 已成功，M4b 发布证据待版本门禁完成。
 >
 > 本文中的功能、性能和指标是目标或验收方案。只有得到代码、测试、CI、Benchmark 或 Release 证据后，才能改写为已完成成果。
 
 ## 1. 30 秒项目介绍
 
-正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、哈希防冲突 Write/Edit 和受治理 argv Command 组成的代码理解、修改与验证链路；每次模型调用前通过确定性 Context Budget 限制请求，并以 SQLite v1 Session/Run projection、required EventJournal、事务式追加 Trace 和 SHA-256 链持久化生命周期证据。
+正在从零设计并实现一个面向真实软件工程任务的企业级 Python Mini CodeAgent。项目采用 Framework-light Agent Harness，通过统一 Provider 协议接入 Anthropic Messages 与 OpenAI-compatible Chat Completions，以跨平台 CLI 作为主要交互入口。当前已完成带硬限制和取消传播的 Agent Core、同步/流式模型适配、安全 HTTP 边界，以及由 JSON Schema Tool Registry、跨平台 WorkspaceBoundary、Read/Search、allow/ask/deny Policy、哈希防冲突 Write/Edit、受治理 argv Command、hardened Git status/diff 和固定 Profile Pytest 诊断组成的代码理解、修改与验证链路；每次模型调用前通过确定性 Context Budget 限制请求，并以 SQLite schema v2、required EventJournal、事务式追加 Trace、稳定 Checkpoint 和 fail-closed Resume 管理长任务状态。
 
-规划能力包括 Git、测试、诊断、修复闭环。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
+下一阶段将基于 Git 证据和结构化测试诊断实现有限次数 Repair Loop。工程侧以严格类型、自动化测试、Windows/Linux CI、安全模型和 SemVer 发布流程保证可维护性，并为 Skills、Hooks、MCP、Subagent 与 Worktree 扩展提供稳定边界。
 
 ## 2. 项目定位
 
@@ -26,10 +27,11 @@
 
 最终技术栈以 `pyproject.toml`、ADR 和发布版本为准。
 
-M0/M1/M1b/M2a/M2b/M2c/M3a/M3b 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
+M0 至 M4b 已实际使用 Python 3.12/3.13、`asyncio`、`Protocol`、`dataclasses`、uv、
 Hatchling、Pydantic v2、pydantic-settings、Platformdirs、HTTPX、httpx-sse、Typer、Rich、
 JSON Schema Draft 2020-12、stdlib `sqlite3`、SQLite WAL/事务/索引、canonical JSON、SHA-256、
-Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里程碑落地。
+Git porcelain v2、Pytest/JUnit XML、defusedxml、pytest-asyncio、Coverage、Ruff 与
+Pyright；其余技术随对应里程碑落地。
 
 | 分类 | 技术 |
 |---|---|
@@ -43,7 +45,8 @@ Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里
 | 命令能力 | `asyncio.subprocess`、argv、process group、`taskkill`、超时/取消/输出限制 |
 | 状态持久化 | stdlib `sqlite3`、schema v2/v1 事务迁移、WAL、foreign key、Session/Run projection、stable Checkpoint、busy timeout |
 | 可观测性 | 类型化 started/completed 事件、required EventJournal、追加式 Trace、usage、SHA-256 链 |
-| Git 闭环 | Git CLI、status/diff、测试发现、诊断反馈、有限次数修复 |
+| Git 证据 | Git CLI、porcelain-v2 NUL parser、status/diff、hardened config |
+| 测试诊断 | 固定 Pytest Profile、JUnit XML、双状态分类、有界 diagnostics |
 | 测试与质量 | Pytest、pytest-asyncio、Coverage、Ruff、Pyright |
 | 构建与发布 | `uv`、`pyproject.toml`、GitHub Actions、SemVer、GitHub Release |
 | 文档与治理 | Markdown、ADR、威胁模型、贡献指南、Changelog |
@@ -59,7 +62,7 @@ Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里
 7. 确定性 Context Budget 与副作用历史固定。
 8. 版本化 Session/Run 与事务式追加 Trace。
 9. Checkpoint 与 Resume。
-10. Git、测试、诊断、修复闭环。
+10. Hardened Git 证据与受治理 Pytest 结构化诊断。
 11. 企业级质量门禁与发布工程。
 12. 面向 Skills、Hooks、MCP、Subagent、Worktree 的扩展架构。
 
@@ -82,8 +85,9 @@ Pytest、pytest-asyncio、Coverage、Ruff 与 Pyright；其余技术随对应里
 | Checkpoint/Resume | 进程退出不应丢失完整上下文，但从旧 prompt 重跑可能重复真实写入 | SQLite schema v2 事务迁移、稳定 typed transcript、canonical JSON SHA-256、Tool/Workspace fingerprint、增量 Trace 风险扫描、显式 replay policy、原子 claim | 初始及完整 ToolResult 后保存；重开后验证兼容性，将旧 Run 标记 `INTERRUPTED`、新建 Run 并从下一逻辑 turn 继续 | 恢复可重放的 Provider/只读中断；阻断未纳入快照的 write/execute/network；防止伪造 plan、并发双 claim 和 stale TOCTOU | 14 项 Resume 分析/claim 单测与 2 项进程边界集成测试；并发 claim 连续 5 次均一个 winner；真实治理写入后 Resume 阻断且文件/审批各一次 |
 | 版本化 Session 与追加式 Trace | 进程退出后纯内存事件不可查询；若 Trace 与状态分开写会出现索引/正文不一致，静默持久化失败还会继续产生副作用 | SQLite schema v1、WAL、`BEGIN IMMEDIATE`、foreign key、Session/Run materialized projection、UUID event ID、canonical JSON、SHA-256 前驱链、required `EventJournal`、bounded busy timeout | 单事务追加 typed lifecycle event 并更新 Run/Session；Provider/Tool 前记录 Started，完成后记录 Completed；支持重开查询、分页读取和全链验证 | 消除 Trace/投影跨文件提交缝隙，将持久化故障转化为 `PERSISTENCE_ERROR`，用 started-only 状态标记不确定副作用，阻止后续工具继续执行 | 42 项 persistence 单测与 3 项真实集成测试；覆盖幂等冲突、4 类篡改、锁超时、终态回滚、Secret 扫描及第二个治理写入零落盘 |
 | 只读 Git 证据 | Agent 修改前后需要可靠识别用户已有变更，但普通 Git 配置可在 status/diff 中执行 fsmonitor、external diff 或 textconv | argv-only Git CLI、`--porcelain=v2 -z` 解析、exact top-level、`--no-optional-locks`、禁用 fsmonitor/ext-diff/textconv/submodule、联合输出/时间/条目/patch 上限、canonical SHA-256 | `git_status` 返回 typed branch/XY/rename/conflict/untracked；`git_diff` 返回 staged/unstaged patch | 避免 locale 文本误解析、父仓库越界、配置驱动代码执行、可选 index 写入和误将截断 patch 当完整证据 | 27 项 Git 单测、4 项 Tool 单测、1 项真实 Agent 集成；恶意扩展零执行，status/diff 前后 index 字节与纳秒 mtime 不变 |
-| Test/repair loop | 文件写完不等于任务完成 | 测试发现、结构化诊断、有限重试 | 修改后运行验证，将失败反馈给 Agent 修复 | 建立修改、验证、修复、再验证闭环 | M4b/M4c 待实现；首次通过率、修复后通过率、平均修复轮次待实测 |
-| 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | Python 3.12/3.13 各 583 通过、4 项 symlink 权限跳过；89.97% 分支覆盖率；四组构建安装 smoke 通过；远程 CI 已触发、结果待验证 |
+| 受治理 Pytest 诊断 | 文件写完不等于任务完成，但直接开放测试命令会引入任意 argv、插件和项目代码执行风险 | fixed `PytestProfile`、`python -I`、禁用 ambient plugin/cache、Workspace target、execute 默认 deny/独立审批、进程预算、`defusedxml` bounded JUnit parser、process/report 双状态 | 模型只选测试文件/目录；批准后运行真实 Pytest，返回 exit 分类、计数和有界 failure/error diagnostics，并在所有路径清理报告 | 将脆弱终端文本解析改为机器协议；区分测试失败、runner 失败、无测试和报告损坏；阻止模型控制解释器/参数/插件 | 95 项新增测试使全套达到 678 passed；真实 deny/approve/reject/non-interactive/Agent+Trace 集成通过；Python 3.12/3.13 各通过，90.25% 分支覆盖率，四组 artifact smoke |
+| 有限 Repair Loop（规划） | 诊断已可用，但自动修改和重复执行可能形成无界反馈循环或覆盖用户改动 | 轮次/时间/token/diff 预算、Git 快照、失败指纹、允许修改范围、停止原因 | 基于结构化 diagnostics 选择修复并重新验证 | 建立修改、验证、有限修复、停止的可审计闭环 | M4c 待实现；首次通过率、修复后通过率、平均修复轮次仍待固定基准实测 |
+| 质量门禁 | 企业级项目需要稳定接口和回归保护 | Ruff、严格 Pyright、Pytest、85% 核心覆盖率门槛、哈希构建约束、CI、SemVer | 自动执行 lint、类型检查、测试、构建和安装验证 | 防止低质量变更进入发布版本 | v0.11 本地：Python 3.12/3.13 各 678 通过、5 项 symlink 权限跳过，90.25% 分支覆盖率，Bandit/pip-audit 通过，四组 artifact smoke；远程 CI/Release 待候选推送 |
 | 可扩展 Harness | Skills、Hooks、MCP、Subagent 会增加控制流复杂度 | 稳定 Protocol、EventBus、能力声明、依赖倒置 | 在不侵入 Agent Core 的前提下增加能力 | 避免扩展绕过权限、Trace 和 Session | 插件合约测试；扩展数量后续回填 |
 
 ## 6. 指标回填规则
@@ -136,7 +140,7 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 
 ### 7.7 Git/test/repair 闭环
 
-“M4a 先把 Git 做成只读证据协议，而不是开放任意 Git 命令：status 使用 porcelain-v2 NUL parser，diff 禁用 external diff/textconv，二者关闭 optional locks、fsmonitor 和 submodule，并要求 Workspace 等于仓库 top-level。这样能看见用户已有改动，又不写 index 或跨边界读取。M4b/M4c 再加入测试诊断和有限修复，不把尚未实现的闭环写成成果。”
+“M4a 先把 Git 做成只读证据协议，而不是开放任意 Git 命令：status 使用 porcelain-v2 NUL parser，diff 禁用 external diff/textconv，二者关闭 optional locks、fsmonitor 和 submodule，并要求 Workspace 等于仓库 top-level。M4b 再把测试做成宿主固定 Profile：模型只能选择 Workspace 内 target，execute 默认 deny 并独立审批；Pytest exit 与不可信 JUnit report 分开分类，诊断和临时文件都有预算与清理。当前只把 Git 证据和测试诊断写成成果，M4c 有限 Repair 仍明确标为规划。”
 
 ### 7.8 Framework-light 的取舍
 
@@ -192,6 +196,13 @@ System Prompt、工具定义和完整消息先统一估算；ToolCall 与 ToolRe
 - 实现 hardened `git_status`/`git_diff`：解析 porcelain-v2 NUL 协议，严格限制仓库
   top-level、时间与输出，禁用 optional locks、fsmonitor、external diff、textconv 和
   submodule；真实恶意配置测试证明扩展零执行且 Git index 不发生写入。
+- 实现受治理 `run_tests`：以宿主固定 Pytest Profile、Workspace target、execute 默认
+  deny/独立审批和 argv-only 进程预算限制执行面；将 bounded JUnit 转换为 typed
+  process/report 双状态、计数与 diagnostics，并明确审批不等于 OS sandbox。
+- 通过真实 Pytest deny/approve/reject/non-interactive、临时报告清理及 Agent+SQLite
+  Trace 集成测试，证明失败详情只进入当前模型交换而不进入生命周期 Trace。
+- Python 3.12/3.13 各 678 项通过、5 项因 Windows symlink 权限跳过，分支覆盖率
+  90.25%；Bandit/pip-audit 与 wheel/sdist 四组隔离安装 smoke 通过。
 - 完成 Mini CodeAgent M0 工程基础：显式配置优先级、Pydantic 强类型边界、密钥安全 JSON 日志与 `doctor` 诊断 CLI。
 - 建立 Ruff、严格 Pyright、Pytest 覆盖率门槛和哈希约束构建，Python 3.12/3.13
   各 583 项通过、4 项因 Windows symlink 权限跳过，分支覆盖率 89.97%。

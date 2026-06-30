@@ -2,11 +2,12 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M3c provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M4b provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
-> context admission, hardened read-only Git evidence, versioned SQLite Session/Trace persistence, and fail-closed
-> Checkpoint/Resume. Shell-string execution and live-provider CI are not implemented.
+> context admission, hardened read-only Git evidence, governed Pytest diagnostics, versioned SQLite
+> Session/Trace persistence, and fail-closed Checkpoint/Resume. Automatic repair, OS sandboxing,
+> shell-string execution, and live-provider CI are not implemented.
 
 ## Requirements
 
@@ -169,6 +170,21 @@ recursion. It never exposes model-controlled Git argv and does not provide add/c
 checkout/push. Git evidence may contain source code or secrets and is a point-in-time observation.
 See `docs/architecture/readonly-git.md`.
 
+## Governed Pytest
+
+`run_tests` executes a host-configured Pytest profile. The model can provide only optional existing
+workspace-relative files/directories and a reason; it cannot choose the Python executable, cwd,
+plugins, timeout, report path, environment, or arbitrary options.
+
+The fixed argv uses isolated Python startup, disables ambient plugin autoload and `.pytest_cache`,
+places `--` before targets, and converts bounded built-in JUnit XML into typed process/report
+statuses, counts, and diagnostics. Execute remains denied by default and requires an explicit
+policy rule plus approval.
+
+Approved tests still run arbitrary repository code with the Agent process's OS permissions. This
+is governed execution, not a sandbox or an automatic Repair Loop. See
+`docs/architecture/governed-test-execution.md`.
+
 ## Documentation
 
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
@@ -184,6 +200,7 @@ See `docs/architecture/readonly-git.md`.
 - Session and Trace: `docs/architecture/session-trace.md`
 - Checkpoint and Resume: `docs/architecture/checkpoint-resume.md`
 - Read-only Git: `docs/architecture/readonly-git.md`
+- Governed test execution: `docs/architecture/governed-test-execution.md`
 - Threat model: `docs/architecture/threat-model.md`
 - Provider protocol ADR: `docs/adr/0002-provider-wire-protocols.md`
 - Workspace boundary ADR: `docs/adr/0003-workspace-boundary.md`
@@ -193,6 +210,7 @@ See `docs/architecture/readonly-git.md`.
 - SQLite Session/Trace ADR: `docs/adr/0007-sqlite-session-trace.md`
 - Safe Checkpoint/Resume ADR: `docs/adr/0008-safe-checkpoint-resume.md`
 - Hardened read-only Git ADR: `docs/adr/0009-hardened-readonly-git.md`
+- Fixed Pytest/JUnit boundary ADR: `docs/adr/0010-fixed-pytest-junit-boundary.md`
 
 ## License
 

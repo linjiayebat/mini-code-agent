@@ -10,11 +10,11 @@
 | L5 File/Edit/Command/Git tools | Complete locally | Read/Search/Write/Edit/argv Command plus hardened Git status/diff |
 | L6 Context Budget | Complete locally | Deterministic estimator, atomic selection, side-effect pinning, runtime integration |
 | L7 Session/Checkpoint/Trace | Complete locally | M3b Trace plus M3c stable Checkpoint/fail-closed Resume |
-| L8 Git/test/repair | In progress | M4a read-only Git evidence complete; test diagnostics/repair pending |
+| L8 Git/test/repair | In progress | M4a Git + M4b governed Pytest diagnostics complete; Repair pending |
 | L9 Skills and Hooks | Not started | |
 | L10 MCP | Not started | |
 | L11 Subagent and Worktree | Not started | |
-| L12 CI, benchmark and release | In progress | CI workflow configured; remote run pending |
+| L12 CI, benchmark and release | In progress | v0.10 GitHub prerelease and Windows/Linux CI succeeded; benchmark pending |
 
 ## L0 Notes
 
@@ -471,3 +471,59 @@
   `mini_code_agent-0.10.0a0.tar.gz`.
 - The exact wheel and sdist passed four isolated console-script smoke tests on Python 3.12 and
   3.13.
+- GitHub prerelease `v0.10.0-alpha.0` contains both artifacts; remote Actions runs
+  `28415910745` and `28416108426` completed successfully.
+
+## M4b Governed Pytest Notes
+
+- `run_tests` is a dedicated execute Tool, not an alias for arbitrary `run_command`. The model can
+  select only existing workspace-relative files/directories and provide an approval reason.
+- The host owns the absolute Python executable, timeout, `maxfail`, default targets, and trusted
+  plugins. Profile models are immutable and validated before execution.
+- Fixed argv uses `python -I -m pytest`, disables ambient plugin autoload and Pytest cache writes,
+  and places `--` before validated targets.
+- Execute remains denied by default. Interactive `ASK` requires independent approval;
+  non-interactive `ASK`, rejection, and approval exceptions start no process.
+- Pytest exit classification is separate from JUnit report status. A missing or invalid report
+  preserves exit, duration, stdout, and stderr rather than becoming an undifferentiated Tool error.
+- JUnit is untrusted test output. The parser bounds bytes before strict UTF-8/XML parsing, rejects
+  DTD/entities and contradictory outcomes, recomputes counts from cases, and bounds every returned
+  diagnostic dimension.
+- Temporary report paths are host-created, omitted as fields, directly echoed forms are replaced,
+  and files are cleaned in `finally`; transformed exfiltration still requires a sandbox.
+- Real Agent integration proves stdout and failure details reach the next Provider request while
+  lifecycle SQLite Trace stores only typed start/completion metadata.
+- M4b is diagnostics only. It does not choose edits, retry tests, or claim a Repair Loop.
+- Approval and resource limits are not an OS sandbox; approved tests retain the Agent user's
+  filesystem, process, and network authority.
+
+## M4b Exercises
+
+1. Trace a `run_tests` ToolCall through Registry, preview, Policy, approval, runner, JUnit parser,
+   ToolResult, and the next Provider request.
+2. Compare exit 1 with report status `invalid`; explain why both facts must be retained.
+3. Add `pytest-asyncio` first through ambient installation and then through `trusted_plugins`;
+   explain which execution surface the host explicitly authorized.
+4. Replace JUnit aggregate counts with false values and verify typed counts do not change.
+5. Trigger output overflow and timeout separately; verify process trees and report files are
+   cleaned.
+6. Explain why disabling `.pytest_cache` is hygiene rather than a workspace immutability guarantee.
+
+## M4b Local Verification
+
+- Full Python 3.12.13 and 3.13.14 development suite: 678 passed per interpreter; 5 Windows
+  symlink privilege skips per interpreter.
+- Python 3.13 branch-aware package coverage: 90.25%, above the configured 85% gate.
+- Contract/parser/runner/tool/policy/real-Pytest/Agent coverage includes invalid XML, DTD/entity,
+  byte/case/diagnostic boundaries, every Pytest exit code, timeout/output status, target escape,
+  default deny, approval, rejection, non-interactive mode, and Trace exclusion.
+- Ruff format/check and strict Pyright: passed.
+- Bandit: no findings after using `defusedxml` for untrusted JUnit. pip-audit found no known
+  vulnerabilities in the locked runtime dependency export.
+- Hashed build produced `mini_code_agent-0.11.0a0-py3-none-any.whl`
+  (`b8973c3e553a8b6f78d11a43de1b10d6d1bcc4010d003532fa209d5fe3f7c01f`) and
+  `mini_code_agent-0.11.0a0.tar.gz`
+  (`240843e56f86536050e378ad1e99cae1e00bad759acc07a4346dd0e5f14acb52`).
+- The exact wheel and sdist each passed isolated installed-package smoke tests on Python 3.12 and
+  3.13, including imports of `PytestRunner` and `RunTestsTool`.
+- GitHub release and remote CI are recorded only after the `v0.11.0-alpha.0` candidate is pushed.

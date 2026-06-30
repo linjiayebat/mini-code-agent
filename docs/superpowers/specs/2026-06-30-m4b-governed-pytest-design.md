@@ -54,8 +54,10 @@ plugin, but the first test runner should depend only on Pytest's built-in report
    entity declarations, and is parsed only after these checks.
 10. Report corruption does not erase the process result. The response preserves execution status
    and marks diagnostics as missing, invalid, unsafe, or too large.
-11. Temporary report paths are host-created, omitted from tool results, and cleaned on success,
-    failure, timeout, output overflow, parser failure, and cancellation.
+11. Temporary report paths are host-created, omitted from result fields, directly echoed path/name
+    forms are replaced with a stable marker, and files are cleaned on success, failure, timeout,
+    output overflow, parser failure, and cancellation. Encoded or transformed exfiltration remains
+    outside this non-sandboxed boundary.
 12. Test stdout, stderr, traceback details, and source paths can contain repository secrets. They
     are returned to the current model call but are not written to bounded lifecycle Trace events.
 13. Running tests executes arbitrary repository code with the Mini Code Agent process's OS
@@ -70,7 +72,8 @@ plugin, but the first test runner should depend only on Pytest's built-in report
 - default workspace-relative targets, defaulting to project discovery;
 - command timeout;
 - `--maxfail` value;
-- trusted plugin module names selected by the host.
+- up to 10 trusted plugin module names selected by the host. Together with 32 targets, this keeps
+  the fixed command within the shared 64-argument contract.
 
 `PytestLimits` bounds:
 
