@@ -45,7 +45,7 @@ state or invoking project-configured execution extensions.
 
 ## Task 5: Documentation and `v0.10.0-alpha.0`
 
-**Status:** Release gates complete; merge pending
+**Status:** Complete
 
 - Add architecture/ADR/threat notes and M4a learning exercises.
 - Update resume Git row with why, implementation, function, solved problem, limits, and evidence.
