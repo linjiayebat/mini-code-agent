@@ -1,4 +1,4 @@
-# M5a Governed Tool Hooks Implementation Plan
+﻿# M5a Governed Tool Hooks Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
@@ -23,8 +23,8 @@ existing Tool/Policy contracts, Pytest, pytest-asyncio, Ruff, strict Pyright.
 - `src/mini_code_agent/hooks/__init__.py`: stable public Hook API.
 - `src/mini_code_agent/hooks/models.py`: sources, phases, contexts, decisions, outcomes, and audit.
 - `src/mini_code_agent/hooks/runner.py`: registration validation, ordering, timeout, and isolation.
-- `tests/unit/hooks/test_models.py`: model bounds and secret-free audit tests.
-- `tests/unit/hooks/test_runner.py`: ordering, failure, timeout, audit, and cancellation tests.
+- `tests/unit/hooks/test_hook_models.py`: model bounds and secret-free audit tests.
+- `tests/unit/hooks/test_hook_runner.py`: ordering, failure, timeout, audit, and cancellation tests.
 - `tests/integration/test_governed_tool_hooks_agent.py`: real Agent/Policy/Tool Hook behavior.
 - `docs/architecture/governed-extensions.md`: Skills/Hooks composition and threat boundary.
 - `docs/adr/0012-inert-skills-host-hooks.md`: extension trust decision.
@@ -47,7 +47,7 @@ existing Tool/Policy contracts, Pytest, pytest-asyncio, Ruff, strict Pyright.
 
 **Files:**
 - Create: `src/mini_code_agent/hooks/models.py`
-- Create: `tests/unit/hooks/test_models.py`
+- Create: `tests/unit/hooks/test_hook_models.py`
 
 - [ ] **Step 1: Write failing model tests**
 
@@ -72,7 +72,7 @@ def test_audit_record_contains_only_bounded_metadata() -> None:
 
 - [ ] **Step 2: Run tests and verify collection fails**
 
-Run: `uv run pytest tests/unit/hooks/test_models.py -q`
+Run: `uv run pytest tests/unit/hooks/test_hook_models.py -q`
 
 Expected: FAIL because `mini_code_agent.hooks.models` does not exist.
 
@@ -109,14 +109,14 @@ frozen domain models and are never serialized to the model.
 
 - [ ] **Step 4: Run focused tests**
 
-Run: `uv run pytest tests/unit/hooks/test_models.py -q`
+Run: `uv run pytest tests/unit/hooks/test_hook_models.py -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit contracts**
 
 ```powershell
-git add src/mini_code_agent/hooks/models.py tests/unit/hooks/test_models.py
+git add src/mini_code_agent/hooks/models.py tests/unit/hooks/test_hook_models.py
 git commit -m "feat: define governed hook contracts"
 ```
 
@@ -124,7 +124,7 @@ git commit -m "feat: define governed hook contracts"
 
 **Files:**
 - Create: `src/mini_code_agent/hooks/runner.py`
-- Create: `tests/unit/hooks/test_runner.py`
+- Create: `tests/unit/hooks/test_hook_runner.py`
 
 - [ ] **Step 1: Write failing runner tests**
 
@@ -150,7 +150,7 @@ async def test_pre_hooks_run_by_priority_then_id_and_stop_on_block() -> None:
 
 - [ ] **Step 2: Run tests and verify failure**
 
-Run: `uv run pytest tests/unit/hooks/test_runner.py -q`
+Run: `uv run pytest tests/unit/hooks/test_hook_runner.py -q`
 
 Expected: FAIL because the runner is absent.
 
@@ -196,8 +196,8 @@ to later Hooks, never alter the Tool result, and propagate cancellation.
 Run:
 
 ```powershell
-uv run pytest tests/unit/hooks/test_runner.py -q
-uv run pyright src/mini_code_agent/hooks/runner.py tests/unit/hooks/test_runner.py
+uv run pytest tests/unit/hooks/test_hook_runner.py -q
+uv run pyright src/mini_code_agent/hooks/runner.py tests/unit/hooks/test_hook_runner.py
 ```
 
 Expected: PASS.
@@ -205,7 +205,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the runner**
 
 ```powershell
-git add src/mini_code_agent/hooks/runner.py tests/unit/hooks/test_runner.py
+git add src/mini_code_agent/hooks/runner.py tests/unit/hooks/test_hook_runner.py
 git commit -m "feat: run bounded tool hooks"
 ```
 

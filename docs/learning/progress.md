@@ -624,10 +624,18 @@
 6. 设计 command Hook 时列出进程 argv、环境、cwd、输出、timeout、approval 和 sandbox
    必须新增的边界，说明为什么不能直接 `subprocess`。
 
-## M5a Provisional Local Verification
+## M5a Local Verification
 
 - Skill/Hook model、parser、catalog、lazy load、Tool、runner、Policy integration 和真实 Agent
-  集成测试已加入；完整发布数字在 Python 3.12/3.13 与制品 smoke 完成后回填。
-- 当前完整开发套件通过；Windows 无 symlink privilege 的用例按能力条件跳过。
-- Ruff format/check 与 strict Pyright 已通过。Bandit、pip-audit、coverage、跨解释器制品
-  smoke、GitHub CI、tag、release 和 asset digest 仍需按发布流程验证后才能写成事实。
+  集成测试已加入。Python 3.12.13 与 3.13.14 完整开发套件各为 867 passed、8 skipped；
+  skip 均为 Windows symlink privilege 条件。
+- 两个解释器的 branch-aware package coverage 均为 90.86%，超过配置的 85% 门槛。
+- Ruff format/check、strict Pyright、Bandit 和去除 editable 项目后的 locked runtime
+  pip-audit 均通过；pip-audit 未发现已知第三方依赖漏洞。
+- 最终哈希约束构建生成 `mini_code_agent-0.13.0a0-py3-none-any.whl`，大小 145319 bytes，
+  SHA-256 为 `0192ff3fa003ed1332d364fc29a8d173b8f9fd8e187e682aa81165dbd8684d01`；
+  `mini_code_agent-0.13.0a0.tar.gz` 大小 624112 bytes，SHA-256 为
+  `b751e177b9827538400ab68f0922c323857c8d7ba65f551a32baafb455264e71`。
+- 上述 exact wheel/sdist 在 Python 3.12/3.13 的四组隔离环境中均通过 console-script
+  smoke，并验证 `SkillCatalog` 与 `ToolHookRunner` 可从安装包导入。
+- GitHub CI、tag、prerelease 和远端 asset digest 尚未发生，必须在远程验证后回填。
