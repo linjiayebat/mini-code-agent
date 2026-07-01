@@ -293,7 +293,7 @@ git commit -m "feat: define bounded subagent profiles"
 - Create: `tests/unit/subagents/test_contracts.py`
 - Create: `tests/unit/subagents/test_evidence.py`
 
-- [ ] **Step 1: Write failing composition tests**
+- [x] **Step 1: Write failing composition tests**
 
 Build fake factories and prove:
 
@@ -321,7 +321,7 @@ def test_validate_child_tools_rejects_authority_drift(
 Test that Provider and Tool factories receive only profile, child ID, and pinned workspace root;
 their exceptions map to one static composition error.
 
-- [ ] **Step 2: Write failing evidence tests**
+- [x] **Step 2: Write failing evidence tests**
 
 Construct a real `AgentResult` transcript with two ToolCalls and correlated ToolResults:
 
@@ -347,7 +347,7 @@ Also reject duplicate/missing correlation, result-before-call, excessive items, 
 roles, and mismatched child result IDs. Verify canonical hashes ignore dictionary insertion order
 and reject NaN/Infinity.
 
-- [ ] **Step 3: Run tests and observe red**
+- [x] **Step 3: Run tests and observe red**
 
 ```powershell
 py -m uv run pytest tests/unit/subagents/test_contracts.py tests/unit/subagents/test_evidence.py -q
@@ -355,7 +355,7 @@ py -m uv run pytest tests/unit/subagents/test_contracts.py tests/unit/subagents/
 
 Expected: missing modules/functions.
 
-- [ ] **Step 4: Implement composition protocols and validation**
+- [x] **Step 4: Implement composition protocols and validation**
 
 Define:
 
@@ -387,7 +387,7 @@ class GovernedSubagentTools(ToolExecutor, Protocol):
 `governance_enforced is True`, and `trust_source_for(name) is SUBAGENT`. Catch implementation
 exceptions and raise only `SubagentCompositionError`.
 
-- [ ] **Step 5: Implement evidence extraction and canonical hash**
+- [x] **Step 5: Implement evidence extraction and canonical hash**
 
 Walk messages in order. Register each assistant ToolCall exactly once; accept a user ToolResult only
 after its call; emit one item in ToolCall order; require every call to have one result. Hash UTF-8
@@ -408,7 +408,7 @@ def subagent_result_sha256(value: BaseModel) -> str: ...
 
 Use canonical ASCII JSON with sorted keys, compact separators, `allow_nan=False`, and SHA-256.
 
-- [ ] **Step 6: Run focused and static checks**
+- [x] **Step 6: Run focused and static checks**
 
 ```powershell
 py -m uv run pytest tests/unit/subagents/test_contracts.py tests/unit/subagents/test_evidence.py -q
@@ -416,7 +416,7 @@ py -m uv run ruff check src/mini_code_agent/subagents tests/unit/subagents
 py -m uv run pyright src/mini_code_agent/subagents tests/unit/subagents
 ```
 
-- [ ] **Step 7: Commit contracts and evidence**
+- [x] **Step 7: Commit contracts and evidence**
 
 ```powershell
 git add src/mini_code_agent/subagents/contracts.py src/mini_code_agent/subagents/evidence.py tests/unit/subagents/test_contracts.py tests/unit/subagents/test_evidence.py
