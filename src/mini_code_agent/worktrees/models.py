@@ -170,6 +170,20 @@ class GitIndexEntry(BaseModel):
         return _normalize_relative_path(value)
 
 
+class GitIndexPointer(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: RelativePath
+    mode: Literal["100644", "100755"]
+    object_id: str = Field(pattern=_SHA1)
+    stage: Literal[0] = 0
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        return _normalize_relative_path(value)
+
+
 class MutationLedgerEntry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
