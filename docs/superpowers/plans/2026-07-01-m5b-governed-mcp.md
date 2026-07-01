@@ -292,7 +292,7 @@ git commit -m "feat: pin MCP server tool contracts"
 - Create: `src/mini_code_agent/mcp/sdk.py`
 - Create: `tests/unit/mcp/test_sdk.py`
 
-- [ ] **Step 1: Write failing SDK conversion tests**
+- [x] **Step 1: Write failing SDK conversion tests**
 
 Use real `mcp.types` values without spawning a process. Verify initialize/list/call snapshots,
 unsupported content detection, `_meta` omission, no server instructions, environment unwrapping,
@@ -314,13 +314,13 @@ def test_stdio_parameters_unwrap_only_explicit_secrets(tmp_path: Path) -> None:
     assert params.env == {"TOKEN": "value"}
 ```
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 Run: `uv run pytest tests/unit/mcp/test_sdk.py -q`
 
 Expected: FAIL because the SDK adapter is absent.
 
-- [ ] **Step 3: Implement protocols and official adapter**
+- [x] **Step 3: Implement protocols and official adapter**
 
 Define:
 
@@ -345,7 +345,7 @@ Implement `OfficialStdioSessionFactory` and a private session using
 `ClientSession(..., read_timeout_seconds=...)`. Do not install sampling, elicitation, roots,
 logging, or custom message callbacks. Snapshot only approved fields.
 
-- [ ] **Step 4: Run focused tests and static checks**
+- [x] **Step 4: Run focused tests and static checks**
 
 Run:
 
@@ -356,7 +356,7 @@ uv run pyright src/mini_code_agent/mcp/sdk.py tests/unit/mcp/test_sdk.py
 
 Expected: both pass.
 
-- [ ] **Step 5: Commit the SDK boundary**
+- [x] **Step 5: Commit the SDK boundary**
 
 ```powershell
 git add src/mini_code_agent/mcp/sdk.py tests/unit/mcp/test_sdk.py
