@@ -749,7 +749,7 @@ Skip the commit only when no review change is required.
 - Modify: `pyproject.toml`
 - Modify: `tests/smoke_test.py`
 
-- [ ] **Step 1: Write architecture and ADR**
+- [x] **Step 1: Write architecture and ADR**
 
 Document:
 
@@ -761,7 +761,7 @@ Document:
 - operational setup and non-claims;
 - why stdio-only, SDK v1 `<2`, exact grant sets, no dynamic refresh, and no automatic retries.
 
-- [ ] **Step 2: Add L10 learning materials**
+- [x] **Step 2: Add L10 learning materials**
 
 Add prerequisites and code anchors for:
 
@@ -772,7 +772,7 @@ Add prerequisites and code anchors for:
 - Flink Connector and Spark Catalog comparison;
 - five exercises with commands and expected evidence.
 
-- [ ] **Step 3: Add resume-ready MCP material**
+- [x] **Step 3: Add resume-ready MCP material**
 
 For the MCP highlight, include:
 
@@ -785,7 +785,7 @@ For the MCP highlight, include:
 - measurable evidence;
 - defensible non-claims and interview explanation.
 
-- [ ] **Step 4: Update user-facing release files**
+- [x] **Step 4: Update user-facing release files**
 
 Bump:
 
@@ -796,7 +796,7 @@ version = "0.14.0a0"
 Update README capability matrix/sample, SECURITY disclosure, and CHANGELOG with only verified
 claims. Add smoke assertions for package version and stable MCP imports.
 
-- [ ] **Step 5: Run release-contract tests**
+- [x] **Step 5: Run release-contract tests**
 
 Run:
 
@@ -808,7 +808,7 @@ git diff --check
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit documentation and release preparation**
+- [x] **Step 6: Commit documentation and release preparation**
 
 ```powershell
 git add docs README.md SECURITY.md CHANGELOG.md pyproject.toml uv.lock tests/smoke_test.py
