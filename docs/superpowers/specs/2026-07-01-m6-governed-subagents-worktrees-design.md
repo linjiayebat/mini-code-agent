@@ -203,8 +203,9 @@ The parent transcript is never passed to a child. Every child receives only:
 Add `TrustSource.SUBAGENT`. Parent delegation remains a normal ToolCall from
 `TrustSource.MODEL`. Child ToolCalls use `SUBAGENT`, allowing stricter rules than parent calls.
 
-M6a analysis delegation is `READ_ONLY` and low risk, but still traverses Registry, Preview, Hooks,
-Policy, and Tool execution. A Policy rule may deny delegation entirely.
+M6a analysis delegation is `READ_ONLY` with medium preview risk because one call may consume up to
+four independent Provider sessions. It still traverses Registry, Preview, Hooks, Policy, and Tool
+execution. A Policy rule may deny delegation entirely.
 
 M6b implementation delegation is a separate Tool with the highest configured side effect:
 
