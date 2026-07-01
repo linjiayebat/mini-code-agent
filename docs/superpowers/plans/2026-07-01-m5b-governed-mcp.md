@@ -623,7 +623,7 @@ git commit -m "feat: preserve MCP extension provenance"
 - Create: `tests/integration/fixtures/mcp_stdio_server.py`
 - Create: `tests/integration/test_governed_mcp_agent.py`
 
-- [ ] **Step 1: Build an official SDK fixture server**
+- [x] **Step 1: Build an official SDK fixture server**
 
 Use `mcp.server.fastmcp.FastMCP` with fixed name/version and one deterministic read-only tool:
 
@@ -643,13 +643,13 @@ if __name__ == "__main__":
 
 Keep the fixture independent of project imports so it behaves like an external server.
 
-- [ ] **Step 2: Write a real production-factory integration test**
+- [x] **Step 2: Write a real production-factory integration test**
 
 Use `sys.executable` plus the absolute fixture path, exact schema hashes discovered from the fixed
 fixture contract, an always-approve test approver, and the production factory. Connect, call,
 close, and assert the result plus final closed state.
 
-- [ ] **Step 3: Write governed Agent tests**
+- [x] **Step 3: Write governed Agent tests**
 
 Compose the MCP Tool with `ToolRegistry`, `GovernedToolExecutor`, and `FakeProvider`. Assert:
 
@@ -659,7 +659,7 @@ Compose the MCP Tool with `ToolRegistry`, `GovernedToolExecutor`, and `FakeProvi
 - an ASK rule requires ordinary Tool approval despite connection approval;
 - unexpected fixture tool/schema drift prevents all Tool registration.
 
-- [ ] **Step 4: Run integration and leak assertions**
+- [x] **Step 4: Run integration and leak assertions**
 
 Run:
 
@@ -671,7 +671,7 @@ uv run pytest tests/unit/mcp tests/unit/policy/test_executor.py `
 
 Expected: all pass, and child processes terminate.
 
-- [ ] **Step 5: Commit integration evidence**
+- [x] **Step 5: Commit integration evidence**
 
 ```powershell
 git add tests/integration/fixtures/mcp_stdio_server.py `
