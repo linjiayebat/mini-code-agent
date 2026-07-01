@@ -458,7 +458,7 @@ git commit -m "feat: govern MCP connection lifecycle"
 - Create: `src/mini_code_agent/mcp/tools.py`
 - Create: `tests/unit/mcp/test_tools.py`
 
-- [ ] **Step 1: Write failing adapter tests**
+- [x] **Step 1: Write failing adapter tests**
 
 Cover exact definition, host risk/side effect, stable MCP resource preview, remote routing, closed
 client, business error, call timeout, and side-effect completion-unknown errors:
@@ -473,19 +473,19 @@ async def test_preview_uses_granted_authority() -> None:
     assert preview.resources == ("mcp://local-test/tools/status",)
 ```
 
-- [ ] **Step 2: Write failing result-bound tests**
+- [x] **Step 2: Write failing result-bound tests**
 
 Test deterministic compact output, ordered text, structured JSON, output-schema revalidation,
 missing structured output, unsupported blocks, too many blocks, text/byte/depth/node/key/string
 limits, non-finite numbers, and remote `_meta` exclusion.
 
-- [ ] **Step 3: Run tests and verify failure**
+- [x] **Step 3: Run tests and verify failure**
 
 Run: `uv run pytest tests/unit/mcp/test_tools.py -q`
 
 Expected: FAIL because `McpTool` and normalizer are absent.
 
-- [ ] **Step 4: Implement adapter and normalizer**
+- [x] **Step 4: Implement adapter and normalizer**
 
 Implement:
 
@@ -515,7 +515,7 @@ Serialize successful/remote-business-error payloads as:
 Omit `structured_content` when absent. Expected client/validation errors become static project
 error envelopes. Never truncate an oversized or unsupported response into success.
 
-- [ ] **Step 5: Run Tool tests**
+- [x] **Step 5: Run Tool tests**
 
 Run:
 
@@ -526,7 +526,7 @@ uv run pyright src/mini_code_agent/mcp/tools.py tests/unit/mcp/test_tools.py
 
 Expected: both pass.
 
-- [ ] **Step 6: Commit Tool adaptation**
+- [x] **Step 6: Commit Tool adaptation**
 
 ```powershell
 git add src/mini_code_agent/mcp/tools.py tests/unit/mcp/test_tools.py
