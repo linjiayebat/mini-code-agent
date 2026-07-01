@@ -28,6 +28,8 @@ from mini_code_agent.mcp.models import (
 from mini_code_agent.policy.models import RiskLevel
 from mini_code_agent.tools.base import SideEffect
 
+PYTHON_EXECUTABLE = str(Path(sys.executable).resolve())
+
 
 def independent_sha256(value: Mapping[str, JsonValue]) -> str:
     raw = json.dumps(
@@ -86,7 +88,7 @@ def profile_for(
 ) -> McpServerProfile:
     return McpServerProfile(
         server_id="local-test",
-        command=sys.executable,
+        command=PYTHON_EXECUTABLE,
         args=("-m", "example_server"),
         cwd=tmp_path.resolve(),
         expected_server_name="mini-code-agent-test",

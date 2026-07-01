@@ -26,6 +26,8 @@ from mini_code_agent.mcp.models import (
 from mini_code_agent.policy.models import RiskLevel
 from mini_code_agent.tools.base import SideEffect
 
+PYTHON_EXECUTABLE = str(Path(sys.executable).resolve())
+
 
 def grant_for(
     *,
@@ -50,7 +52,7 @@ def profile_for(
 ) -> McpServerProfile:
     return McpServerProfile(
         server_id="local-test",
-        command=sys.executable,
+        command=PYTHON_EXECUTABLE,
         args=("-m", "example_server"),
         cwd=tmp_path.resolve(),
         environment=environment or {},
@@ -102,12 +104,19 @@ def test_profile_masks_secrets_and_projects_public_approval(tmp_path: Path) -> N
     request = profile.approval_request()
     assert request == McpConnectionApprovalRequest(
         server_id="local-test",
-        command=(sys.executable, "-m", "example_server"),
+        command=(PYTHON_EXECUTABLE, "-m", "example_server"),
         cwd=str(tmp_path.resolve()),
         environment_keys=("API_TOKEN",),
     )
     assert "do-not-leak" not in request.model_dump_json()
     assert "operating-system privileges" in request.warning
+
+
+def test_profile_fixture_uses_unlinked_real_interpreter(tmp_path: Path) -> None:
+    profile = profile_for(tmp_path)
+
+    assert profile.command == PYTHON_EXECUTABLE
+    assert not Path(profile.command).is_symlink()
 
 
 def test_profile_freezes_environment_and_grants(tmp_path: Path) -> None:
@@ -116,7 +125,7 @@ def test_profile_freezes_environment_and_grants(tmp_path: Path) -> None:
     profile = McpServerProfile.model_validate(
         {
             "server_id": "local-test",
-            "command": sys.executable,
+            "command": PYTHON_EXECUTABLE,
             "args": ("-m", "example_server"),
             "cwd": tmp_path.resolve(),
             "environment": environment,
@@ -198,7 +207,7 @@ def test_profile_rejects_linked_executable_when_supported(
 ) -> None:
     linked = tmp_path / "linked-python.exe"
     try:
-        linked.symlink_to(Path(sys.executable))
+        linked.symlink_to(PYTHON_EXECUTABLE)
     except OSError as exc:
         pytest.skip(f"Executable symlink unavailable in this environment: {exc}")
 
@@ -300,7 +309,7 @@ def test_approval_request_forbids_unknown_fields() -> None:
         McpConnectionApprovalRequest.model_validate(
             {
                 "server_id": "local-test",
-                "command": (sys.executable,),
+                "command": (PYTHON_EXECUTABLE,),
                 "cwd": os.getcwd(),
                 "environment_keys": (),
                 "secret": "leak",

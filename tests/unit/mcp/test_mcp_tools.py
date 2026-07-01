@@ -25,6 +25,8 @@ from mini_code_agent.mcp.tools import McpTool, build_mcp_tools
 from mini_code_agent.policy.models import RiskLevel
 from mini_code_agent.tools.base import SideEffect, ToolDefinition
 
+PYTHON_EXECUTABLE = str(Path(sys.executable).resolve())
+
 
 def input_schema() -> dict[str, JsonValue]:
     return {
@@ -79,7 +81,7 @@ def profile_for(
 ) -> McpServerProfile:
     return McpServerProfile(
         server_id="local-test",
-        command=sys.executable,
+        command=PYTHON_EXECUTABLE,
         args=("-m", "example_server"),
         cwd=tmp_path.resolve(),
         expected_server_name="mini-code-agent-test",

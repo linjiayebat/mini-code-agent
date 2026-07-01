@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import stat
 import sys
 from pathlib import Path
 
@@ -51,6 +53,7 @@ OUTPUT_SCHEMA: dict[str, JsonValue] = {
     "required": ["clean"],
     "additionalProperties": False,
 }
+PYTHON_EXECUTABLE = str(Path(sys.executable).resolve())
 
 
 class RecordingConnectionApprover:
@@ -63,6 +66,29 @@ class RecordingConnectionApprover:
         return self._approved
 
 
+def server_executable_for(tmp_path: Path) -> str:
+    if os.name == "nt":
+        return PYTHON_EXECUTABLE
+    launcher = tmp_path / "mcp-python-launcher"
+    launcher.write_text(
+        "\n".join(
+            (
+                f"#!{sys.executable}",
+                "import runpy",
+                "import sys",
+                "script = sys.argv.pop(1)",
+                "sys.argv[0] = script",
+                "runpy.run_path(script, run_name='__main__')",
+                "",
+            )
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+    return str(launcher.resolve())
+
+
 def profile_for(
     tmp_path: Path,
     *,
@@ -72,7 +98,7 @@ def profile_for(
     environment = {"MCP_TEST_CALL_LOG": SecretStr(str(call_log))} if call_log is not None else {}
     return McpServerProfile(
         server_id="fixture",
-        command=sys.executable,
+        command=server_executable_for(tmp_path),
         args=(str(FIXTURE.resolve()), *args),
         cwd=tmp_path.resolve(),
         environment=environment,
@@ -139,8 +165,9 @@ async def test_real_stdio_tool_runs_through_governed_agent(
 ) -> None:
     call_log = tmp_path / "calls.jsonl"
     approver = RecordingConnectionApprover()
+    profile = profile_for(tmp_path, call_log=call_log)
     client = McpStdioClient(
-        profile_for(tmp_path, call_log=call_log),
+        profile,
         approver=approver,
     )
 
@@ -161,7 +188,7 @@ async def test_real_stdio_tool_runs_through_governed_agent(
         assert payload["content_type"] == "mcp_tool_result"
         assert len(approver.requests) == 1
         assert approver.requests[0].command == (
-            sys.executable,
+            profile.command,
             str(FIXTURE.resolve()),
         )
         assert approver.requests[0].environment_keys == ("MCP_TEST_CALL_LOG",)

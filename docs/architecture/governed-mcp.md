@@ -70,6 +70,12 @@ process creation. Links, Windows reparse points, relative paths, missing paths, 
 executables, and non-executable files fail closed. Argument tokens are passed as data; no command
 string, shell expansion, PATH resolution, or URL opener is used.
 
+On POSIX, a virtual environment's `sys.executable` may itself be a symlink. Prefer a reviewed,
+installed MCP console entry point that is an unlinked regular file. A test or private deployment can
+use a host-created regular launcher inside the environment. Do not blindly resolve a venv Python
+symlink when the server dependencies exist only in that venv: invoking the base interpreter can
+change `sys.prefix` and lose the environment's packages.
+
 Environment values remain `SecretStr`. Approval exposes only sorted key names. The official SDK
 adds its small platform-default environment allowlist and the explicit profile values.
 

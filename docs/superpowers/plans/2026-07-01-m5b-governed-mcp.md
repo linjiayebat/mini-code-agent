@@ -94,7 +94,11 @@ def test_profile_masks_environment_values_and_projects_approval(tmp_path: Path) 
 
     assert "do-not-leak" not in repr(profile)
     request = profile.approval_request()
-    assert request.command == (sys.executable, "-m", "example_server")
+    assert request.command == (
+        str(Path(sys.executable).resolve()),
+        "-m",
+        "example_server",
+    )
     assert request.environment_keys == ("API_TOKEN",)
     assert "do-not-leak" not in request.model_dump_json()
 
@@ -645,9 +649,10 @@ Keep the fixture independent of project imports so it behaves like an external s
 
 - [x] **Step 2: Write a real production-factory integration test**
 
-Use `sys.executable` plus the absolute fixture path, exact schema hashes discovered from the fixed
-fixture contract, an always-approve test approver, and the production factory. Connect, call,
-close, and assert the result plus final closed state.
+Use a regular executable launcher on POSIX, the resolved Python executable on Windows, and the
+absolute fixture path. Pin exact schema hashes discovered from the fixed fixture contract, use an
+always-approve test approver, and exercise the production factory. Connect, call, close, and assert
+the result plus final closed state.
 
 - [x] **Step 3: Write governed Agent tests**
 

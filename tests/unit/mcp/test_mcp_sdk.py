@@ -27,6 +27,8 @@ from mini_code_agent.mcp.sdk import (
 from mini_code_agent.policy.models import RiskLevel
 from mini_code_agent.tools.base import SideEffect
 
+PYTHON_EXECUTABLE = str(Path(sys.executable).resolve())
+
 
 def profile_for(
     tmp_path: Path,
@@ -35,7 +37,7 @@ def profile_for(
 ) -> McpServerProfile:
     return McpServerProfile(
         server_id="local-test",
-        command=sys.executable,
+        command=PYTHON_EXECUTABLE,
         args=("-m", "example_server"),
         cwd=tmp_path.resolve(),
         environment=environment or {},
@@ -63,7 +65,7 @@ def test_stdio_parameters_use_exact_argv_cwd_and_explicit_secrets(tmp_path: Path
     params = build_stdio_parameters(profile)
 
     assert params == StdioServerParameters(
-        command=sys.executable,
+        command=PYTHON_EXECUTABLE,
         args=["-m", "example_server"],
         cwd=tmp_path.resolve(),
         env={"TOKEN": "secret-value"},

@@ -386,10 +386,12 @@ wording states that completion is unknown. Read-only failures can use ordinary f
 
 ### Real stdio integration
 
-A tiny test server built with the official SDK exposes one read-only deterministic tool. The test
-starts it through the production factory using `sys.executable`, verifies handshake identity and
-schema hashes, executes through `AgentRuntime` plus `GovernedToolExecutor`, and confirms process
-shutdown. A sibling malicious fixture proves unexpected tool and schema drift are rejected.
+A tiny test server built with the official SDK exposes one read-only deterministic tool. On POSIX,
+the test creates a regular executable launcher whose shebang targets the active environment because
+the venv Python path is normally a symlink; on Windows it uses the resolved Python executable. The
+production factory verifies handshake identity and schema hashes, executes through `AgentRuntime`
+plus `GovernedToolExecutor`, and confirms process shutdown. A sibling malicious fixture proves
+unexpected tool and schema drift are rejected.
 
 ### Release gates
 
