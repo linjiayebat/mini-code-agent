@@ -369,7 +369,7 @@ git commit -m "feat: isolate MCP stdio SDK boundary"
 - Create: `src/mini_code_agent/mcp/client.py`
 - Create: `tests/unit/mcp/test_client.py`
 
-- [ ] **Step 1: Write failing approval-order tests**
+- [x] **Step 1: Write failing approval-order tests**
 
 Use a recording fake approver/factory. Assert approval precedes open, denial/exception/timeout
 never opens, malformed approver return fails closed, and secrets never appear in errors:
@@ -388,19 +388,19 @@ async def test_connect_requires_approval_before_process_open(tmp_path: Path) -> 
     await client.aclose()
 ```
 
-- [ ] **Step 2: Write failing lifecycle/deadline tests**
+- [x] **Step 2: Write failing lifecycle/deadline tests**
 
 Cover startup/initialize/list/close timeout, cleanup on every failure, exact contract verification,
 single-use connect, idempotent close, no partial tools, call serialization, no retries, transport
 failure, and cancellation propagation with bounded cleanup.
 
-- [ ] **Step 3: Run tests and verify failure**
+- [x] **Step 3: Run tests and verify failure**
 
 Run: `uv run pytest tests/unit/mcp/test_client.py -q`
 
 Expected: FAIL because `McpStdioClient` does not exist.
 
-- [ ] **Step 4: Implement the state machine**
+- [x] **Step 4: Implement the state machine**
 
 Implement:
 
@@ -434,7 +434,7 @@ class McpStdioClient:
 Apply one outer timeout per phase and an `asyncio.Lock` around calls. Do not reconnect or retry.
 Use a bounded shielded cleanup helper after cancellation/failure.
 
-- [ ] **Step 5: Run lifecycle tests**
+- [x] **Step 5: Run lifecycle tests**
 
 Run:
 
@@ -445,7 +445,7 @@ uv run pyright src/mini_code_agent/mcp/client.py tests/unit/mcp/test_client.py
 
 Expected: both pass.
 
-- [ ] **Step 6: Commit lifecycle ownership**
+- [x] **Step 6: Commit lifecycle ownership**
 
 ```powershell
 git add src/mini_code_agent/mcp/client.py tests/unit/mcp/test_client.py
