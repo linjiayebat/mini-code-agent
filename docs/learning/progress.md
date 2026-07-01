@@ -12,9 +12,9 @@
 | L7 Session/Checkpoint/Trace | Complete locally | M3b Trace plus M3c stable Checkpoint/fail-closed Resume |
 | L8 Git/test/repair | Complete and released | M4a Git + M4b Pytest + M4c bounded Repair |
 | L9 Skills and Hooks | Complete and released | Inert Skills + monotonic Tool Hooks; v0.13 evidence |
-| L10 MCP | Complete locally | Governed stdio, exact grants, real SDK integration; release gates pending |
+| L10 MCP | Complete and released | Governed stdio, exact grants, real SDK integration; v0.14 evidence |
 | L11 Subagent and Worktree | Not started | |
-| L12 CI, benchmark and release | In progress | v0.13 GitHub prerelease succeeded; v0.14 MCP release pending |
+| L12 CI, benchmark and release | In progress | v0.14 MCP prerelease and cross-platform evidence complete |
 
 ## L0 Notes
 
@@ -688,16 +688,31 @@
 8. 阅读官方 MCP security best practices，写出 local stdio 与 remote HTTP/OAuth threat
    model 不能共用的五个边界。
 
-## M5b Local Verification
+## M5b Release Verification
 
-- 截至 release preparation 前，Python 3.13.14 全量开发套件为 960 passed、10 skipped；
-  skip 均为 Windows 缺少 symlink privilege，包括新增 executable/cwd link 防护。
-- branch-aware package coverage 为 90.82%，超过配置的 85% 门槛。
-- Ruff format/check、strict Pyright 和 Bandit 已通过。
-- 对 `uv export --locked --no-dev --no-emit-project` 生成的运行时依赖使用 Python 3.13
-  执行 pip-audit，结果为 `No known vulnerabilities found`。
-- 真实官方 SDK stdio 集成覆盖 handshake、exact identity/schema、Agent ToolCall、structured
-  output、shutdown、extension deny、独立 Tool approval、unexpected Tool、schema drift 和
-  cross-task close。
-- 上述为本地开发证据；Python 3.12 复验、GitHub Actions、wheel/sdist smoke、tag、Release
-  URL 与 artifact SHA-256 必须在 `v0.14.0-alpha.0` 发布后回填，当前不提前声明。
+- Python 3.12.13 与 3.13.14 本地全量开发套件均为 961 passed、10 skipped，branch-aware
+  package coverage 均为 90.84%；10 个 skip 均因当前 Windows 会话缺少 symlink privilege。
+- Ruff format/check、strict Pyright、Bandit 已通过；对 locked runtime export 执行
+  pip-audit，结果为 `No known vulnerabilities found`。
+- 真实官方 SDK stdio 集成覆盖 handshake、exact identity/schema、Agent ToolCall、
+  structured output、shutdown、extension deny、独立 Tool approval、unexpected Tool、
+  schema drift 和 cross-task close。
+- 首次构建发现 `.coverage` 被带入 sdist，导致归档膨胀且 hash 漂移；显式 Hatch exclude、
+  固定 `SOURCE_DATE_EPOCH` 和 `tests/artifact_test.py` 将该问题转化为 CI 发布契约。
+- 首轮 Linux CI 发现 uv venv 的 `sys.executable` 是 symlink，与 MCP profile 的 unlinked
+  executable 约束冲突；单元 fixture 改用真实解释器，POSIX stdio 集成改用宿主创建的普通
+  launcher，保留 venv 依赖与生产安全约束。
+- 最终 wheel `mini_code_agent-0.14.0a0-py3-none-any.whl` 为 158701 bytes，SHA-256
+  `6e224b01fb69eafdc96019c7bd4c7544bce8e61314d52fd77184b78c9d4f4e22`；sdist
+  `mini_code_agent-0.14.0a0.tar.gz` 为 466629 bytes，SHA-256
+  `b9e36d3d1a828e3f6fd3ef39f23de7d4f669851bddf02c84b3793e14af2881d3`。两次构建逐字节
+  一致，且两个制品在 Python 3.12/3.13 四组隔离环境中均通过 import、CLI 与真实 MCP
+  connect/call/close/shutdown smoke。
+- PR #4 <https://github.com/linjiayebat/mini-code-agent/pull/4> 的最终 CI run
+  `28501386707` 与 merged-main run `28501782935` 均通过 quality、Ubuntu/Windows x
+  Python 3.12/3.13 五个 job。main CI 的 Windows 两组各 971 passed；Ubuntu 两组各
+  970 passed、1 个 Windows-specific path identity 条件跳过。
+- Annotated tag `v0.14.0-alpha.0` 解引用到 merge commit
+  `1af6a07632abe291ac4adc0ccb04aaa1be5c7d38`。非 draft GitHub prerelease
+  <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.14.0-alpha.0> 已发布，
+  远端 asset name、size 和 GitHub SHA-256 digest 与上述本地 smoke 制品完全一致。

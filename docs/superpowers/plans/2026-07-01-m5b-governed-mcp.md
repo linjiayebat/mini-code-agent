@@ -831,7 +831,7 @@ git commit -m "docs: prepare 0.14 MCP alpha"
 Run the full suite, coverage, Ruff, Pyright, Bandit, and dependency audit under both supported
 interpreters where applicable. Record exact pass/skip counts and branch coverage.
 
-- [ ] **Step 2: Build deterministic release artifacts**
+- [x] **Step 2: Build deterministic release artifacts**
 
 Run:
 
@@ -845,12 +845,12 @@ Get-ChildItem dist | Select-Object Name,Length
 Before the recursive delete, resolve `build` and `dist` and verify both are direct children of the
 worktree root.
 
-- [ ] **Step 3: Smoke-test wheel and sdist in isolated Python 3.12/3.13 environments**
+- [x] **Step 3: Smoke-test wheel and sdist in isolated Python 3.12/3.13 environments**
 
 Install each artifact without the source tree on `PYTHONPATH`, import the stable API, start/call/
 close the real fixture server, and verify version `0.14.0a0`.
 
-- [ ] **Step 4: Push the feature branch and open a PR**
+- [x] **Step 4: Push the feature branch and open a PR**
 
 ```powershell
 git push -u origin codex/m5b-governed-mcp
@@ -861,7 +861,7 @@ gh pr checks --watch
 
 Expected: all required GitHub Actions jobs pass.
 
-- [ ] **Step 5: Merge, tag, and create prerelease**
+- [x] **Step 5: Merge, tag, and create prerelease**
 
 After PR checks pass:
 
@@ -875,7 +875,7 @@ gh release create v0.14.0-alpha.0 dist\\* --prerelease --verify-tag `
   --title "v0.14.0-alpha.0" --notes-file build/release-notes.md
 ```
 
-- [ ] **Step 6: Verify remote evidence**
+- [x] **Step 6: Verify remote evidence**
 
 Verify:
 
@@ -885,7 +885,7 @@ Verify:
 - merged-main CI succeeds;
 - repository main is clean and tracks `origin/main`.
 
-- [ ] **Step 7: Record exact evidence and push**
+- [x] **Step 7: Record exact evidence and push**
 
 Append exact local/CI counts, run IDs, release URL, artifact names/sizes/SHA-256, and any
 platform skips to CHANGELOG and learning progress. Commit and push:

@@ -30,6 +30,8 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
   `TrustSource`; unknown names and invalid values fail construction.
 - MCP unit test filenames are globally unique so Pytest's default import mode can collect the
   complete suite with existing command/skill tests.
+- Release builds fix `SOURCE_DATE_EPOCH`, explicitly exclude local workspace/test state from
+  sdists, and run an archive-member contract test before artifact smoke tests.
 
 ### Security
 
@@ -47,6 +49,23 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 - Local stdio processes retain the Agent user's OS authority. M5b does not claim sandboxing,
   executable provenance, package safety, remote MCP/OAuth security, rollback, or exactly-once
   side effects.
+
+### Verification
+
+- Local Python 3.12.13 and 3.13.14 each passed 961 tests with 10 Windows symlink-privilege skips
+  and 90.84% branch coverage. Ruff, strict Pyright, Bandit, and locked runtime dependency audit
+  passed.
+- PR #4 CI run `28501386707` and merged-main CI run `28501782935` passed quality plus
+  Ubuntu/Windows on Python 3.12/3.13. On merged main, Windows passed 971 tests; Ubuntu passed 970
+  with one intentional Windows-path-identity skip.
+- Repeated builds produced byte-identical artifacts. The wheel is 158701 bytes with SHA-256
+  `6e224b01fb69eafdc96019c7bd4c7544bce8e61314d52fd77184b78c9d4f4e22`; the sdist is
+  466629 bytes with SHA-256
+  `b9e36d3d1a828e3f6fd3ef39f23de7d4f669851bddf02c84b3793e14af2881d3`.
+- Both artifacts passed isolated install, import, CLI, real MCP connect/call/close, and shutdown
+  smoke tests on Python 3.12/3.13. Annotated tag `v0.14.0-alpha.0` dereferences to merge commit
+  `1af6a07632abe291ac4adc0ccb04aaa1be5c7d38`; the non-draft GitHub prerelease asset sizes and
+  digests match the local artifacts.
 
 ## [0.13.0-alpha.0] - 2026-07-01
 
