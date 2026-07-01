@@ -1,0 +1,277 @@
+from __future__ import annotations
+
+import os
+import stat
+from enum import StrEnum
+from pathlib import Path, PurePosixPath
+from typing import Annotated, Literal, Self, cast
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+from mini_code_agent.subagents.models import SubagentProfile
+
+_IDENTIFIER = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+_SHA1 = r"^[0-9a-f]{40}$"
+_SHA256 = r"^[0-9a-f]{64}$"
+_MAX_TRACKED_BYTES = 512 * 1024 * 1024
+_MAX_CANDIDATE_BYTES = 8 * 1024 * 1024
+_MAX_FILE_BYTES = 2 * 1024 * 1024
+
+RelativePath = Annotated[str, Field(min_length=1, max_length=1024)]
+Sha256 = Annotated[str, Field(pattern=_SHA256)]
+
+
+class WorktreeErrorCode(StrEnum):
+    INVALID_PROFILE = "invalid_profile"
+    REPOSITORY_DIRTY = "repository_dirty"
+    REPOSITORY_UNSUPPORTED = "repository_unsupported"
+    LEASE_LIMIT = "lease_limit"
+    WORKTREE_CREATE_FAILED = "worktree_create_failed"
+    MATERIALIZATION_FAILED = "materialization_failed"
+    SNAPSHOT_FAILED = "snapshot_failed"
+    CLEANUP_REQUIRED = "cleanup_required"
+    NO_CANDIDATE_CHANGES = "no_candidate_changes"
+    CANDIDATE_CORRUPT = "candidate_corrupt"
+    CANDIDATE_STALE = "candidate_stale"
+    CANDIDATE_CONFLICT = "candidate_conflict"
+    APPLY_FAILED_ROLLED_BACK = "apply_failed_rolled_back"
+    APPLY_UNCERTAIN = "apply_uncertain"
+
+
+class WorktreeError(RuntimeError):
+    def __init__(self, code: WorktreeErrorCode, public_message: str) -> None:
+        super().__init__(public_message)
+        self.code = code
+        self.public_message = public_message
+
+
+class WorktreeLeaseState(StrEnum):
+    CREATING = "creating"
+    ACTIVE = "active"
+    SNAPSHOTTING = "snapshotting"
+    CLEANUP_REQUIRED = "cleanup_required"
+    REMOVED = "removed"
+
+
+class CandidateState(StrEnum):
+    BUILDING = "building"
+    READY = "ready"
+    APPLYING = "applying"
+    APPLIED = "applied"
+    REJECTED = "rejected"
+    UNCERTAIN = "uncertain"
+
+
+class CandidateOperation(StrEnum):
+    ADD = "add"
+    MODIFY = "modify"
+
+
+class WorktreeLimits(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_active_leases: int = Field(default=2, ge=1, le=4)
+    max_tracked_files: int = Field(default=10_000, ge=1, le=20_000)
+    max_tracked_bytes: int = Field(
+        default=256 * 1024 * 1024,
+        ge=1,
+        le=_MAX_TRACKED_BYTES,
+    )
+    max_tracked_depth: int = Field(default=32, ge=1, le=64)
+    max_candidate_files: int = Field(default=32, ge=1, le=128)
+    max_candidate_after_bytes: int = Field(
+        default=2 * 1024 * 1024,
+        ge=1,
+        le=_MAX_CANDIDATE_BYTES,
+    )
+    max_file_bytes: int = Field(default=1024 * 1024, ge=1, le=_MAX_FILE_BYTES)
+    max_path_chars: int = Field(default=1024, ge=1, le=1024)
+    max_diff_chars: int = Field(default=32_768, ge=1, le=65_536)
+    cleanup_timeout_seconds: float = Field(default=30, gt=0, le=300)
+
+    @model_validator(mode="after")
+    def validate_relationships(self) -> Self:
+        if self.max_candidate_after_bytes < self.max_file_bytes:
+            raise ValueError("Candidate byte limit cannot be lower than the per-file limit.")
+        return self
+
+
+class WorktreeProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    repository_root: Path
+    state_root: Path
+    git_executable: Path
+    allowed_path_prefixes: tuple[RelativePath, ...] = Field(min_length=1, max_length=64)
+    implementation_profile: SubagentProfile
+    limits: WorktreeLimits = Field(default_factory=WorktreeLimits)
+
+    @field_validator("repository_root", "state_root", "git_executable", mode="before")
+    @classmethod
+    def resolve_host_path(cls, value: object) -> Path:
+        path = Path(value)  # type: ignore[arg-type]
+        if not path.is_absolute():
+            raise ValueError("Worktree host paths must be absolute.")
+        try:
+            return path.resolve(strict=True)
+        except OSError:
+            raise ValueError("Worktree host paths must already exist.") from None
+
+    @field_validator("allowed_path_prefixes", mode="before")
+    @classmethod
+    def normalize_allowed_prefixes(cls, value: object) -> tuple[str, ...]:
+        if not isinstance(value, (list, tuple)):
+            raise ValueError("Allowed path prefixes must be a sequence.")
+        items = cast(list[object] | tuple[object, ...], value)
+        normalized = tuple(
+            _normalize_relative_path(str(item), allow_trailing_slash=True) for item in items
+        )
+        if len({item.casefold() for item in normalized}) != len(normalized):
+            raise ValueError("Allowed path prefixes must be case-insensitively unique.")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_host_configuration(self) -> Self:
+        if not self.repository_root.is_dir():
+            raise ValueError("Repository root must be an existing directory.")
+        if not self.state_root.is_dir():
+            raise ValueError("State root must be an existing directory.")
+        if not _is_regular_unlinked_file(self.git_executable):
+            raise ValueError("Git executable must be an existing unlinked regular file.")
+        if _paths_overlap(self.repository_root, self.state_root):
+            raise ValueError("State root must be separate from the repository.")
+        if _is_link_or_reparse(self.repository_root) or _is_link_or_reparse(self.state_root):
+            raise ValueError("Worktree roots cannot be links or reparse points.")
+        _validate_secure_state_ancestors(self.state_root)
+        if self.implementation_profile.mode != "implementation":
+            raise ValueError("Worktree profile requires an implementation Subagent profile.")
+        return self
+
+
+class GitIndexEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: RelativePath
+    mode: Literal["100644", "100755"]
+    object_id: str = Field(pattern=_SHA1)
+    stage: Literal[0] = 0
+    byte_count: int = Field(ge=0, le=_MAX_TRACKED_BYTES)
+    sha256: Sha256
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        return _normalize_relative_path(value)
+
+
+class MutationLedgerEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    ordinal: int = Field(ge=0, le=127)
+    tool_call_id: str = Field(pattern=_IDENTIFIER)
+    tool_name: Literal["write_file", "edit_file"]
+    path: RelativePath
+    created: bool
+    before_sha256: Sha256 | None = None
+    after_sha256: Sha256
+    byte_count: int = Field(ge=0, le=_MAX_FILE_BYTES)
+    line_count: int = Field(ge=0)
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        return _normalize_relative_path(value)
+
+    @model_validator(mode="after")
+    def validate_hashes(self) -> Self:
+        if self.created != (self.before_sha256 is None):
+            raise ValueError("Created mutation and before hash are inconsistent.")
+        if self.before_sha256 == self.after_sha256:
+            raise ValueError("Mutation must change the content hash.")
+        return self
+
+
+class CandidateFile(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: RelativePath
+    operation: CandidateOperation
+    mode: Literal["100644", "100755"]
+    before_sha256: Sha256 | None = None
+    after_sha256: Sha256
+    byte_count: int = Field(ge=0, le=_MAX_FILE_BYTES)
+    line_count: int = Field(ge=0)
+    diff: str = Field(max_length=65_536)
+    content_blob_sha256: Sha256
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        return _normalize_relative_path(value)
+
+    @model_validator(mode="after")
+    def validate_operation(self) -> Self:
+        if (self.operation is CandidateOperation.ADD) != (self.before_sha256 is None):
+            raise ValueError("Candidate operation and before hash are inconsistent.")
+        if self.before_sha256 == self.after_sha256:
+            raise ValueError("Candidate must change the content hash.")
+        if self.content_blob_sha256 != self.after_sha256:
+            raise ValueError("Candidate content blob must match the after hash.")
+        return self
+
+
+def _normalize_relative_path(value: str, *, allow_trailing_slash: bool = False) -> str:
+    if "\0" in value or "\\" in value:
+        raise ValueError("Worktree paths must be NUL-free POSIX paths.")
+    normalized = value[:-1] if allow_trailing_slash and value.endswith("/") else value
+    if not normalized or normalized.startswith("/") or "//" in normalized:
+        raise ValueError("Worktree paths must be canonical relative paths.")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError("Worktree paths must not contain traversal segments.")
+    if any(part.casefold() == ".git" for part in path.parts):
+        raise ValueError("Worktree paths cannot traverse .git.")
+    if path.as_posix() != normalized:
+        raise ValueError("Worktree paths must already be normalized.")
+    return normalized
+
+
+def _paths_overlap(first: Path, second: Path) -> bool:
+    return first == second or first in second.parents or second in first.parents
+
+
+def _is_regular_unlinked_file(path: Path) -> bool:
+    if _is_link_or_reparse(path):
+        return False
+    try:
+        return stat.S_ISREG(path.stat(follow_symlinks=False).st_mode)
+    except OSError:
+        return False
+
+
+def _is_link_or_reparse(path: Path) -> bool:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return True
+    if stat.S_ISLNK(metadata.st_mode):
+        return True
+    attributes = getattr(metadata, "st_file_attributes", 0)
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    return bool(attributes & reparse_flag)
+
+
+def _validate_secure_state_ancestors(state_root: Path) -> None:
+    for path in (state_root, *state_root.parents):
+        if _is_link_or_reparse(path) or not path.is_dir():
+            raise ValueError("State root ancestors must be unlinked directories.")
+    if os.name != "nt":
+        mode = state_root.stat(follow_symlinks=False).st_mode
+        if mode & (stat.S_IRWXG | stat.S_IRWXO):
+            raise ValueError("State root must exclude group and other access.")

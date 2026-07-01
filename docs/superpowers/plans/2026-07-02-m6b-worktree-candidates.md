@@ -39,7 +39,7 @@
 ```powershell
 py -m uv run --no-sync pytest tests/unit/worktrees/test_models.py tests/unit/subagents/test_models.py -q
 py -m uv run --no-sync ruff check src/mini_code_agent/worktrees src/mini_code_agent/subagents/models.py tests/unit/worktrees
-py -m uv run --no-sync mypy src/mini_code_agent/worktrees src/mini_code_agent/subagents/models.py
+py -m uv run --no-sync pyright
 ```
 
 - [ ] Commit: `feat: define governed worktree contracts`
@@ -68,7 +68,7 @@ candidates/uncertain/
 hooks-empty/
 ```
 
-- [ ] Run focused tests, Ruff, and mypy.
+- [ ] Run focused tests, Ruff, and Pyright.
 - [ ] Commit: `feat: add secure worktree git and state foundations`
 
 ## Task 3: Create No-Checkout Leases and Materialize the Index
@@ -213,7 +213,7 @@ hooks-empty/
 ```powershell
 py -m uv run --no-sync ruff format --check .
 py -m uv run --no-sync ruff check .
-py -m uv run --no-sync mypy src
+py -m uv run --no-sync pyright
 py -m uv run --no-sync pytest -q
 py -m uv build
 git status --short
