@@ -653,7 +653,7 @@ git commit -m "feat: coordinate bounded subagent batches"
 - Create: `tests/unit/subagents/test_tools.py`
 - Modify: `src/mini_code_agent/subagents/__init__.py`
 
-- [ ] **Step 1: Write failing Tool tests**
+- [x] **Step 1: Write failing Tool tests**
 
 Cover:
 
@@ -691,13 +691,13 @@ oversized serialized result, supervisor failure, malformed result, and builder c
 Prove `build_subagent_tools()` rejects duplicate profile IDs/local names and any parent local name
 appearing in any child `tool_names`.
 
-- [ ] **Step 2: Run Tool tests and observe red**
+- [x] **Step 2: Run Tool tests and observe red**
 
 ```powershell
 py -m uv run pytest tests/unit/subagents/test_tools.py -q
 ```
 
-- [ ] **Step 3: Implement dynamic Tool definitions**
+- [x] **Step 3: Implement dynamic Tool definitions**
 
 The input schema is profile-specific:
 
@@ -726,12 +726,12 @@ Snapshot a distinct `ToolDefinition` per profile. Preview never exposes task tex
 to the supervisor, serializes ASCII canonical JSON, checks UTF-8 byte length, and returns static
 errors. Re-raise cancellation.
 
-- [ ] **Step 4: Export the stable M6a API**
+- [x] **Step 4: Export the stable M6a API**
 
 Export profile/limits/status/results/evidence/errors, factory protocols, event models/sinks,
 supervisor, Tool, and builder. Do not export internal prepared-child or transcript walkers.
 
-- [ ] **Step 5: Verify Tool, Registry, and Policy paths**
+- [x] **Step 5: Verify Tool, Registry, and Policy paths**
 
 ```powershell
 py -m uv run pytest tests/unit/subagents/test_tools.py tests/unit/tools/test_registry.py tests/unit/policy -q
@@ -739,7 +739,7 @@ py -m uv run ruff check src/mini_code_agent/subagents tests/unit/subagents
 py -m uv run pyright src/mini_code_agent/subagents tests/unit/subagents
 ```
 
-- [ ] **Step 6: Commit the parent adapter**
+- [x] **Step 6: Commit the parent adapter**
 
 ```powershell
 git add src/mini_code_agent/subagents tests/unit/subagents/test_tools.py
