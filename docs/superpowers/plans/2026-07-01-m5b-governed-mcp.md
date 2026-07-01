@@ -541,7 +541,7 @@ git commit -m "feat: adapt bounded MCP tools"
 - Create: `src/mini_code_agent/mcp/__init__.py`
 - Modify: `tests/smoke_test.py`
 
-- [ ] **Step 1: Write failing per-tool provenance tests**
+- [x] **Step 1: Write failing per-tool provenance tests**
 
 Prove unknown mapping keys are rejected, omitted mapping preserves current behavior, mapped MCP
 Tool reaches Hooks and Policy as extension, and mapping cannot affect schema/preview side effect:
@@ -564,7 +564,7 @@ async def test_executor_uses_host_tool_trust_mapping() -> None:
     assert policy.requests[0].trust_source is TrustSource.EXTENSION
 ```
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run:
 
@@ -574,7 +574,7 @@ uv run pytest tests/unit/policy/test_executor.py -q -k trust
 
 Expected: FAIL because the constructor does not accept `trust_sources`.
 
-- [ ] **Step 3: Implement immutable provenance resolution**
+- [x] **Step 3: Implement immutable provenance resolution**
 
 Add:
 
@@ -591,12 +591,12 @@ trust_source = self._trust_sources.get(call.name, self._trust_source)
 
 Use the resolved source in both `ToolHookContext` and `PolicyRequest`.
 
-- [ ] **Step 4: Export stable MCP API and extend smoke coverage**
+- [x] **Step 4: Export stable MCP API and extend smoke coverage**
 
 Export profiles, grants, limits, errors, approver protocol, client, official factory, Tool adapter,
 builder, and `schema_sha256`. Do not export raw `mcp.types` or internal session snapshots.
 
-- [ ] **Step 5: Run regression and static checks**
+- [x] **Step 5: Run regression and static checks**
 
 Run:
 
@@ -609,7 +609,7 @@ uv run pyright
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit governance integration**
+- [x] **Step 6: Commit governance integration**
 
 ```powershell
 git add src/mini_code_agent/policy/executor.py src/mini_code_agent/mcp/__init__.py `
