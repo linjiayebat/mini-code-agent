@@ -751,7 +751,7 @@ git commit -m "feat: expose governed analysis subagents"
 **Files:**
 - Create: `tests/integration/test_governed_subagent_agent.py`
 
-- [ ] **Step 1: Build real governed child Tools**
+- [x] **Step 1: Build real governed child Tools**
 
 Create a test `SubagentToolFactory` that returns a new `GovernedToolExecutor` per child:
 
@@ -774,7 +774,7 @@ def create(
 
 Assert exact profile names equal the produced definitions.
 
-- [ ] **Step 2: Write the parent Agent integration**
+- [x] **Step 2: Write the parent Agent integration**
 
 Use a parent `ScriptedProvider` that calls `delegate_analysis` with two tasks, then stops. Use a
 factory that returns two child scripted Providers; each child calls a real read-only Tool and then
@@ -790,7 +790,7 @@ Assert:
 - child Tool trust source is `SUBAGENT`;
 - parent and child Workspaces remain byte-identical.
 
-- [ ] **Step 3: Add deny, timeout, and non-recursion integration cases**
+- [x] **Step 3: Add deny, timeout, and non-recursion integration cases**
 
 Prove:
 
@@ -799,7 +799,7 @@ Prove:
 - one timed-out child does not stop its sibling;
 - parent task cancellation cancels both children.
 
-- [ ] **Step 4: Run integration and leak assertions**
+- [x] **Step 4: Run integration and leak assertions**
 
 ```powershell
 py -m uv run pytest tests/integration/test_governed_subagent_agent.py -q
@@ -809,7 +809,7 @@ rg -n "task text|system_prompt|arguments|ToolResult content|exception" src/mini_
 
 Expected: all tests pass; the event scan shows no payload fields.
 
-- [ ] **Step 5: Commit integration evidence**
+- [x] **Step 5: Commit integration evidence**
 
 ```powershell
 git add tests/integration/test_governed_subagent_agent.py
