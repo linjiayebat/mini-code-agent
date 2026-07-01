@@ -63,7 +63,7 @@ ToolRegistry, GovernedToolExecutor, Policy/Hooks, Pytest/pytest-asyncio, Ruff, s
 - Create: `src/mini_code_agent/subagents/models.py`
 - Create: `tests/unit/subagents/test_models.py`
 
-- [ ] **Step 1: Write failing provenance tests**
+- [x] **Step 1: Write failing provenance tests**
 
 Add:
 
@@ -102,7 +102,7 @@ def test_rule_can_match_subagent_without_allowing_parent_model() -> None:
     assert parent.rule_id == "default-read-only"
 ```
 
-- [ ] **Step 2: Run the provenance tests and observe red**
+- [x] **Step 2: Run the provenance tests and observe red**
 
 Run:
 
@@ -112,7 +112,7 @@ py -m uv run pytest tests/unit/policy/test_engine.py -q
 
 Expected: the stable enum assertion fails because `subagent` does not exist.
 
-- [ ] **Step 3: Add the public provenance value**
+- [x] **Step 3: Add the public provenance value**
 
 Add exactly:
 
@@ -127,7 +127,7 @@ class TrustSource(StrEnum):
 
 Run the focused Policy tests and expect all to pass.
 
-- [ ] **Step 4: Write failing profile/model tests**
+- [x] **Step 4: Write failing profile/model tests**
 
 Cover:
 
@@ -193,7 +193,7 @@ Also reject task/result/status IDs over bounds, non-static public errors, summar
 characters, evidence over 256 items, `max_tasks > 4`, `max_concurrency > 4`, child timeout over 600,
 batch timeout over 900, and batch timeout lower than child timeout.
 
-- [ ] **Step 5: Run model tests and observe collection failure**
+- [x] **Step 5: Run model tests and observe collection failure**
 
 Run:
 
@@ -203,7 +203,7 @@ py -m uv run pytest tests/unit/subagents/test_models.py -q
 
 Expected: import failure because the package does not exist.
 
-- [ ] **Step 6: Implement immutable models**
+- [x] **Step 6: Implement immutable models**
 
 Implement these stable public shapes:
 
@@ -266,7 +266,7 @@ Add bounded `SubagentEvidenceItem`, `SubagentChildResult`, `SubagentBatchResult`
 enum, and runtime error class. Freeze tuples and calculate count consistency in a model validator.
 Do not include raw task, prompt, arguments, ToolResult content, or exception text.
 
-- [ ] **Step 7: Run model, Policy, Ruff, and Pyright checks**
+- [x] **Step 7: Run model, Policy, Ruff, and Pyright checks**
 
 Run:
 
@@ -278,7 +278,7 @@ py -m uv run pyright src/mini_code_agent/subagents/models.py tests/unit/subagent
 
 Expected: all pass.
 
-- [ ] **Step 8: Commit provenance and models**
+- [x] **Step 8: Commit provenance and models**
 
 ```powershell
 git add src/mini_code_agent/policy/models.py src/mini_code_agent/subagents/__init__.py src/mini_code_agent/subagents/models.py tests/unit/policy/test_engine.py tests/unit/subagents/test_models.py
