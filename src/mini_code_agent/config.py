@@ -22,6 +22,11 @@ class LogLevel(StrEnum):
     ERROR = "error"
 
 
+class ProviderName(StrEnum):
+    OPENAI_COMPATIBLE = "openai_compatible"
+    ANTHROPIC = "anthropic"
+
+
 def default_data_dir() -> Path:
     return user_data_path("mini-code-agent", appauthor=False)
 
@@ -40,6 +45,9 @@ class AppSettings(BaseModel):
     log_level: LogLevel = LogLevel.INFO
     data_dir: Path = Field(default_factory=default_data_dir)
     trace_enabled: bool = True
+    provider: ProviderName = ProviderName.OPENAI_COMPATIBLE
+    model: str | None = Field(default=None, min_length=1, max_length=256)
+    base_url: str | None = Field(default=None, min_length=1, max_length=2_048)
     anthropic_api_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
 
@@ -48,6 +56,9 @@ class AppSettings(BaseModel):
             "log_level": self.log_level.value,
             "data_dir": str(self.data_dir),
             "trace_enabled": self.trace_enabled,
+            "provider": self.provider.value,
+            "model": self.model,
+            "base_url": self.base_url,
             "anthropic_api_key_configured": self.anthropic_api_key is not None,
             "openai_api_key_configured": self.openai_api_key is not None,
         }
@@ -64,6 +75,9 @@ class EnvironmentSettings(BaseSettings):
     log_level: LogLevel | None = None
     data_dir: Path | None = None
     trace_enabled: bool | None = None
+    provider: ProviderName | None = None
+    model: str | None = Field(default=None, min_length=1, max_length=256)
+    base_url: str | None = Field(default=None, min_length=1, max_length=2_048)
     anthropic_api_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
 

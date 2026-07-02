@@ -2,14 +2,15 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M6b provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M7 provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
 > context admission, hardened read-only Git evidence, governed Pytest diagnostics, versioned SQLite
 > Session/Trace persistence, fail-closed Checkpoint/Resume, and a host-controlled bounded Repair
 > loop, provenance-aware lazy Skills, deterministic host-registered Tool Hooks, and host-pinned
 > local MCP stdio Tools, bounded host-profiled read-only analysis Subagents, and host-managed
-> Worktree implementation candidates with separately approved adoption. OS sandboxing,
+> Worktree implementation candidates with separately approved adoption, plus provider-backed
+> `run` and `chat` terminal commands with governed action previews. OS sandboxing,
 > shell-string execution, project-provided executable Hooks, automatic Repair resume, remote
 > HTTP/OAuth MCP, automatic commit/merge/push, and live-provider CI are not implemented.
 
@@ -45,6 +46,41 @@ defaults < TOML file < MINI_CODE_AGENT_* environment variables < CLI overrides
 Default config paths follow the operating system conventions provided by Platformdirs.
 Secrets are accepted from environment variables but are never printed by `doctor`.
 See `config.example.toml` for supported inputs.
+
+## Run with SiliconFlow
+
+Create a local config file from the example and set the API key only in the current shell:
+
+```powershell
+Copy-Item .\config.example.toml .\config.toml
+$env:MINI_CODE_AGENT_OPENAI_API_KEY = "your-siliconflow-api-key"
+```
+
+Use the exact model identifier available in your SiliconFlow account. The example uses
+`Pro/zai-org/GLM-4.7` with the OpenAI-compatible endpoint
+`https://api.siliconflow.cn/v1`.
+
+Run one coding task against the current workspace:
+
+```powershell
+mini-code-agent run "Inspect this project and summarize its architecture." `
+  --config .\config.toml `
+  --workspace .
+```
+
+Start an interactive task loop:
+
+```powershell
+mini-code-agent chat --config .\config.toml --workspace .
+```
+
+Each `chat` prompt starts an independent bounded Agent run against the same workspace; durable
+conversation memory is not implied. Read-only tools run automatically. File writes and local argv
+commands display an action preview and require explicit confirmation. Use `--non-interactive` with
+`run` to deny writes and commands instead of prompting.
+
+These commands call the configured live model API and consume provider quota. CI uses mocked HTTP
+transports and never requires a real API key.
 
 ## Provider Adapters
 
@@ -290,7 +326,9 @@ claim token/latency improvements. See
 - Product design: `docs/superpowers/specs/2026-06-29-mini-code-agent-design.md`
 - Learning map: `docs/learning/knowledge-map.md`
 - Learning evidence: `docs/learning/progress.md`
+- M7 CLI learning notes: `docs/learning/m7-cli-provider-runtime.md`
 - Resume evidence: `docs/resume/project-profile.md`
+- M7 resume and interview profile: `docs/resume/m7-cli-project-profile.md`
 - Agent Core: `docs/architecture/agent-core.md`
 - Provider adapters: `docs/architecture/provider-adapters.md`
 - Read-only tools: `docs/architecture/readonly-tools.md`

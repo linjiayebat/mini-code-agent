@@ -2,3 +2,9 @@
 log_level = "info"
 data_dir = ".mini-code-agent"
 trace_enabled = true
+provider = "openai_compatible"
+model = "Pro/zai-org/GLM-4.7"
+base_url = "https://api.siliconflow.cn/v1"
+
+# Keep API keys out of this file. For SiliconFlow, set:
+# MINI_CODE_AGENT_OPENAI_API_KEY

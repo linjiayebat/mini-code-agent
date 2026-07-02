@@ -6,6 +6,7 @@ from mini_code_agent.config import (
     AppSettings,
     ConfigurationError,
     LogLevel,
+    ProviderName,
     load_settings,
 )
 
@@ -18,6 +19,9 @@ def clear_project_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "MINI_CODE_AGENT_TRACE_ENABLED",
         "MINI_CODE_AGENT_ANTHROPIC_API_KEY",
         "MINI_CODE_AGENT_OPENAI_API_KEY",
+        "MINI_CODE_AGENT_PROVIDER",
+        "MINI_CODE_AGENT_MODEL",
+        "MINI_CODE_AGENT_BASE_URL",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -27,6 +31,9 @@ def test_defaults_are_valid_without_a_config_file(tmp_path: Path) -> None:
 
     assert settings.log_level is LogLevel.INFO
     assert settings.trace_enabled is True
+    assert settings.provider is ProviderName.OPENAI_COMPATIBLE
+    assert settings.model is None
+    assert settings.base_url is None
     assert settings.anthropic_api_key is None
     assert settings.openai_api_key is None
 
@@ -62,6 +69,9 @@ def test_safe_dict_never_contains_secret_values(tmp_path: Path) -> None:
     settings = AppSettings.model_validate(
         {
             "data_dir": tmp_path,
+            "provider": "openai_compatible",
+            "model": "Pro/zai-org/GLM-4.7",
+            "base_url": "https://api.siliconflow.cn/v1",
             "anthropic_api_key": "anthropic-secret",
             "openai_api_key": "openai-secret",
         }
@@ -72,8 +82,36 @@ def test_safe_dict_never_contains_secret_values(tmp_path: Path) -> None:
 
     assert "anthropic-secret" not in rendered
     assert "openai-secret" not in rendered
+    assert payload["provider"] == "openai_compatible"
+    assert payload["model"] == "Pro/zai-org/GLM-4.7"
+    assert payload["base_url"] == "https://api.siliconflow.cn/v1"
     assert payload["anthropic_api_key_configured"] is True
     assert payload["openai_api_key_configured"] is True
+
+
+def test_provider_environment_overrides_file_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[mini_code_agent]
+provider = "anthropic"
+model = "claude-from-file"
+base_url = "https://provider-from-file.example"
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MINI_CODE_AGENT_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("MINI_CODE_AGENT_MODEL", "Pro/zai-org/GLM-4.7")
+    monkeypatch.setenv("MINI_CODE_AGENT_BASE_URL", "https://api.siliconflow.cn/v1")
+
+    settings = load_settings(config_path=config_path)
+
+    assert settings.provider is ProviderName.OPENAI_COMPATIBLE
+    assert settings.model == "Pro/zai-org/GLM-4.7"
+    assert settings.base_url == "https://api.siliconflow.cn/v1"
 
 
 def test_invalid_toml_section_has_an_actionable_error(tmp_path: Path) -> None:

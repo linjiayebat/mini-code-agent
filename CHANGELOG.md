@@ -4,6 +4,32 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+### Added
+
+- Provider-backed `run` and `chat` CLI commands that compose the existing Agent runtime,
+  OpenAI-compatible or Anthropic adapters, bounded Workspace, and governed built-in tools.
+- SiliconFlow configuration through `provider`, `model`, `base_url`, and the existing
+  `MINI_CODE_AGENT_OPENAI_API_KEY` secret environment variable.
+- Rich terminal lifecycle output and explicit action previews for file writes and local argv
+  commands.
+
+### Security
+
+- Read-only tools remain allowed by default. Writes and CLI-enabled command execution require an
+  interactive approval; non-interactive mode denies both without prompting.
+- CLI output uses normalized public errors and never renders API key values. Live provider calls
+  remain outside CI.
+- Approval previews render model-controlled text literally and quote argv using platform-specific
+  display rules so Rich markup or whitespace cannot obscure argument boundaries.
+
+### Verification
+
+- Local uv-managed Python 3.13.14 passed 1201 tests with 13 Windows privilege/platform skips and
+  88.56% branch-aware package coverage. Ruff format/check and strict Pyright passed.
+- MockTransport verified the SiliconFlow-compatible
+  `https://api.siliconflow.cn/v1/chat/completions` request path and bearer header without a live
+  credential. A live SiliconFlow request was not run.
+
 ## [0.16.0-alpha.0] - 2026-07-02
 
 ### Added
