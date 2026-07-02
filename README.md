@@ -88,7 +88,10 @@ fixed when the process starts; it cannot be changed from the browser.
 The Web console shows Agent lifecycle events, Tool activity, token usage, bounded action previews,
 and file diffs. Write and command actions pause until they are approved or rejected in the
 inspector. API keys stay in server-side settings; the browser receives only a configured/not
-configured flag and a process-random request token.
+configured flag and a process-random request token. The most recent 20 runs are retained in
+bounded process memory so refreshing the browser restores the current transcript. Restarting the
+server clears this display history, and restored runs are not automatically added to later model
+context.
 
 Each `chat` prompt starts an independent bounded Agent run against the same workspace; durable
 conversation memory is not implied. Read-only tools run automatically. File writes and local argv

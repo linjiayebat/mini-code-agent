@@ -5,6 +5,7 @@ const state = {
   runId: null,
   lastSequence: 0,
   eventSource: null,
+  reconnectTimer: null,
   pendingApproval: null,
   activityCount: 0,
 };
@@ -195,6 +196,10 @@ function describeAgentEvent(event) {
 }
 
 function stopEventStream() {
+  if (state.reconnectTimer !== null) {
+    window.clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
   if (state.eventSource !== null) {
     state.eventSource.close();
     state.eventSource = null;
@@ -279,8 +284,16 @@ function connectEvents(runId) {
     });
   }
   source.onerror = () => {
-    if (state.runId !== null) {
+    if (state.runId === runId && state.eventSource === source) {
+      source.close();
+      state.eventSource = null;
       addActivity("连接正在恢复", "等待本地事件流重新连接", "pending");
+      state.reconnectTimer = window.setTimeout(() => {
+        state.reconnectTimer = null;
+        if (state.runId === runId) {
+          connectEvents(runId);
+        }
+      }, 1000);
     }
   };
 }
@@ -290,7 +303,7 @@ async function api(path, options = {}) {
   if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
-  if (options.method && options.method !== "GET") {
+  if (state.bootstrap?.csrf_token) {
     headers.set("X-Mini-Code-Agent-Token", state.bootstrap.csrf_token);
   }
   const response = await fetch(path, { ...options, headers });
@@ -366,6 +379,47 @@ async function cancelRun() {
   }
 }
 
+async function restoreHistory(activeRun) {
+  try {
+    const history = await api("/api/runs");
+    for (const detail of history) {
+      addMessage("user", detail.prompt);
+      if (detail.final_text || detail.error) {
+        addMessage(
+          "assistant",
+          detail.final_text || detail.error,
+          Boolean(detail.error),
+        );
+      }
+    }
+
+    const latest = history.at(-1);
+    const activeDetail = activeRun
+      ? history.find((detail) => detail.run_id === activeRun.run_id)
+      : null;
+    if (activeDetail?.status === "running") {
+      state.runId = activeDetail.run_id;
+      state.lastSequence = 0;
+      setRunState("running", "运行中");
+      connectEvents(activeDetail.run_id);
+    } else if (latest) {
+      if (latest.status === "cancelled") {
+        setRunState("idle", "已停止");
+      } else {
+        const failed = latest.status === "failed" || Boolean(latest.error);
+        setRunState(
+          failed ? "failed" : "completed",
+          failed ? "失败" : "已完成",
+        );
+      }
+    }
+  } catch (error) {
+    state.runId = null;
+    setRunState("failed", "恢复失败");
+    showToast(error.message);
+  }
+}
+
 async function bootstrap() {
   try {
     const response = await fetch("/api/bootstrap", { cache: "no-store" });
@@ -394,10 +448,8 @@ async function bootstrap() {
     if (!state.bootstrap.api_key_configured || !state.bootstrap.model) {
       showToast("请在启动服务前配置模型和服务端环境变量。");
     }
-    if (state.bootstrap.active_run) {
-      state.runId = state.bootstrap.active_run.run_id;
-      setRunState("running", "运行中");
-      connectEvents(state.runId);
+    if (state.bootstrap.latest_run) {
+      await restoreHistory(state.bootstrap.active_run);
     }
   } catch (error) {
     elements.providerStatus.classList.add("error");

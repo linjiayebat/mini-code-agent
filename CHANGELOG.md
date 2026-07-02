@@ -4,6 +4,14 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep the Web composer pinned inside the viewport while long Agent answers scroll within the
+  transcript pane.
+- Restore the latest 20 in-process run transcripts after browser refresh without adding prompts
+  to lifecycle events, and reconnect SSE from the latest observed sequence to avoid duplicates.
+- Ensure HTML `hidden` states cannot be overridden by component display styles.
+
 ### Added
 
 - Loopback-only `mini-code-agent web` command with a responsive three-pane local workbench,
@@ -34,7 +42,7 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ### Verification
 
-- M8 local Windows verification passed 1218 tests with 13 privilege/platform skips and 88.52%
+- M8 local Windows verification passed 1224 tests with 13 privilege/platform skips and 88.50%
   branch-aware package coverage. Ruff format/check, strict Pyright, and browser layout checks at
   1440x1024, 1024x768, and 390x844 passed.
 - Local uv-managed Python 3.13.14 passed 1201 tests with 13 Windows privilege/platform skips and

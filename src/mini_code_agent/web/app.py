@@ -24,6 +24,7 @@ from mini_code_agent.web.manager import (
 )
 from mini_code_agent.web.models import (
     ApprovalDecisionRequest,
+    RunDetail,
     RunSnapshot,
     StartRunRequest,
 )
@@ -129,6 +130,7 @@ def create_web_app(
             else settings.anthropic_api_key is not None
         )
         active = run_manager.active_snapshot()
+        latest = run_manager.latest_snapshot()
         return {
             "version": __version__,
             "workspace": str(workspace_root),
@@ -137,7 +139,20 @@ def create_web_app(
             "api_key_configured": key_configured,
             "csrf_token": token,
             "active_run": active.model_dump(mode="json") if active else None,
+            "latest_run": latest.model_dump(mode="json") if latest else None,
         }
+
+    async def run_detail(run_id: str) -> RunDetail:
+        try:
+            return run_manager.detail(run_id)
+        except RunNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run not found.",
+            ) from None
+
+    async def run_history() -> list[RunDetail]:
+        return list(run_manager.details())
 
     async def start_run(payload: StartRunRequest) -> RunSnapshot:
         try:
@@ -203,7 +218,7 @@ def create_web_app(
             )
         return {"cancelled": True}
 
-    mutation_dependencies = [Depends(require_token)]
+    protected_dependencies = [Depends(require_token)]
     app.add_api_route("/healthz", health, methods=["GET"])
     app.add_api_route("/", index, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route("/static/styles.css", styles, methods=["GET"])
@@ -215,7 +230,21 @@ def create_web_app(
         methods=["POST"],
         response_model=RunSnapshot,
         status_code=status.HTTP_202_ACCEPTED,
-        dependencies=mutation_dependencies,
+        dependencies=protected_dependencies,
+    )
+    app.add_api_route(
+        "/api/runs",
+        run_history,
+        methods=["GET"],
+        response_model=list[RunDetail],
+        dependencies=protected_dependencies,
+    )
+    app.add_api_route(
+        "/api/runs/{run_id}",
+        run_detail,
+        methods=["GET"],
+        response_model=RunDetail,
+        dependencies=protected_dependencies,
     )
     app.add_api_route(
         "/api/runs/{run_id}/events",
@@ -226,13 +255,13 @@ def create_web_app(
         "/api/runs/{run_id}/approvals/{tool_call_id}",
         decide_approval,
         methods=["POST"],
-        dependencies=mutation_dependencies,
+        dependencies=protected_dependencies,
     )
     app.add_api_route(
         "/api/runs/{run_id}/cancel",
         cancel_run,
         methods=["POST"],
-        dependencies=mutation_dependencies,
+        dependencies=protected_dependencies,
     )
     return app
 
