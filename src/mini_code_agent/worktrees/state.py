@@ -34,6 +34,12 @@ class LeasePaths:
     worktree: Path
 
 
+@dataclass(frozen=True, slots=True)
+class VerifiedCandidate:
+    manifest: CandidateManifest
+    blobs: dict[str, bytes]
+
+
 class WorktreeStateStore:
     def __init__(self, profile: WorktreeProfile) -> None:
         self._profile = profile
@@ -214,7 +220,13 @@ class WorktreeStateStore:
             candidate_children = {path.name for path in candidate.iterdir()}
         except OSError:
             raise WorktreeStateError("Candidate directory could not be listed.") from None
-        if candidate_children != {"manifest.json", "blobs"}:
+        expected_children = {"manifest.json", "blobs"}
+        allowed_children = (
+            {frozenset(expected_children), frozenset({*expected_children, "recovery.json"})}
+            if state in {CandidateState.APPLYING, CandidateState.UNCERTAIN}
+            else {frozenset(expected_children)}
+        )
+        if frozenset(candidate_children) not in allowed_children:
             raise WorktreeStateError("Candidate directory contains unexpected paths.")
         manifest_path = candidate / "manifest.json"
         if _is_link_or_reparse(manifest_path):
@@ -232,6 +244,7 @@ class WorktreeStateStore:
             CandidateState.REJECTED: CandidateDisposition.REJECTED,
             CandidateState.APPLYING: CandidateDisposition.READY,
             CandidateState.APPLIED: CandidateDisposition.READY,
+            CandidateState.DISCARDING: CandidateDisposition.READY,
             CandidateState.UNCERTAIN: CandidateDisposition.READY,
         }.get(state)
         if (
@@ -276,6 +289,74 @@ class WorktreeStateStore:
             ):
                 raise WorktreeStateError("Candidate blob hash is invalid.")
         return manifest
+
+    def load_candidate_payload(
+        self,
+        state: CandidateState,
+        candidate_id: str,
+    ) -> VerifiedCandidate:
+        manifest = self.load_candidate(state, candidate_id)
+        blobs_dir = self._candidate_path(state, candidate_id) / "blobs"
+        blobs: dict[str, bytes] = {}
+        for digest in sorted({item.content_blob_sha256 for item in manifest.files}):
+            path = blobs_dir / digest
+            try:
+                blobs[digest] = path.read_bytes()
+            except OSError:
+                raise WorktreeStateError("Candidate blob could not be read.") from None
+        return VerifiedCandidate(manifest=manifest, blobs=blobs)
+
+    def delete_candidate(
+        self,
+        state: CandidateState,
+        candidate_id: str,
+    ) -> None:
+        if state is not CandidateState.DISCARDING:
+            raise WorktreeStateError("Only a claimed discard candidate can be deleted.")
+        payload = self.load_candidate_payload(state, candidate_id)
+        candidate = self._candidate_path(state, candidate_id)
+        blobs = candidate / "blobs"
+        for digest in sorted(payload.blobs):
+            path = blobs / digest
+            if _is_link_or_reparse(path):
+                raise WorktreeStateError("Candidate blob is unsafe.")
+            try:
+                path.unlink()
+            except OSError:
+                raise WorktreeStateError("Candidate blob could not be removed.") from None
+        try:
+            blobs.rmdir()
+            (candidate / "manifest.json").unlink()
+            candidate.rmdir()
+        except OSError:
+            raise WorktreeStateError("Candidate could not be removed.") from None
+
+    def write_candidate_recovery(
+        self,
+        state: CandidateState,
+        candidate_id: str,
+        status: str,
+    ) -> None:
+        if state is not CandidateState.APPLYING or status not in {"apply_uncertain"}:
+            raise WorktreeStateError("Candidate recovery evidence is invalid.")
+        self.load_candidate(state, candidate_id)
+        candidate = self._candidate_path(state, candidate_id)
+        target = candidate / "recovery.json"
+        if target.exists():
+            return
+        encoded = (
+            json.dumps(
+                {
+                    "candidate_id": candidate_id,
+                    "status": status,
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("ascii")
+        self._publish_immutable(target, encoded)
 
     def complete_lease(self, lease_id: str) -> None:
         self._validate_identifier(lease_id)

@@ -164,15 +164,15 @@ hooks-empty/
 - Test: `tests/unit/worktrees/test_discard.py`
 - Test: `tests/integration/test_candidate_adoption.py`
 
-- [ ] Define separate high-risk WRITE Tools `adopt_subagent_candidate` and `discard_subagent_candidate`.
-- [ ] Preview adoption by verifying manifest/blob hashes and returning bounded repo/base/path/byte/diff resources without parent mutation.
-- [ ] On execute, atomically claim `ready -> applying`, require exact clean repo/HEAD base, preflight every path, stage same-directory temporary files, and revalidate all paths immediately before the first replacement.
-- [ ] Apply in canonical order, verify the exact final set/hashes, and move `applying -> applied`; leave changes unstaged and uncommitted.
-- [ ] On preflight conflict, perform zero writes and return to `ready`.
-- [ ] On partial I/O failure, roll back in reverse order and persist `rolled_back` evidence or `uncertain` when rollback cannot be proven.
-- [ ] Recover interrupted `applying` candidates: all-before to `ready`, all-after to `applied`, mixed to `uncertain`.
-- [ ] Permit discard only for a verified `ready` candidate through an atomic claim; reject applied/applying/uncertain candidates.
-- [ ] Commit: `feat: adopt and discard verified candidates`
+- [x] Define separate high-risk WRITE Tools `adopt_subagent_candidate` and `discard_subagent_candidate`.
+- [x] Preview adoption by verifying manifest/blob hashes and returning bounded repo/base/path/byte/diff resources without parent mutation.
+- [x] On execute, atomically claim `ready -> applying`, require exact clean repo/HEAD base, preflight every path, stage same-directory temporary files, and revalidate all paths immediately before the first replacement.
+- [x] Apply in canonical order, verify the exact final set/hashes, and move `applying -> applied`; leave changes unstaged and uncommitted.
+- [x] On preflight conflict, perform zero writes and return to `ready`.
+- [x] On partial I/O failure, roll back in reverse order and persist `rolled_back` evidence or `uncertain` when rollback cannot be proven.
+- [x] Recover interrupted `applying` candidates: all-before to `ready`, all-after to `applied`, mixed to `uncertain`.
+- [x] Permit discard only for a verified `ready` candidate through an atomic claim; reject applied/applying/uncertain candidates.
+- [x] Commit: `feat: adopt and discard verified candidates`
 
 ## Task 9: Run Adversarial and Cross-Version Quality Gates
 

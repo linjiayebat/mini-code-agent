@@ -25,6 +25,7 @@ from mini_code_agent.subagents import (
 from mini_code_agent.testing import PytestRunner
 from mini_code_agent.tools import RunTestsTool
 from mini_code_agent.worktrees import (
+    AdoptSubagentCandidateTool,
     CandidateSnapshotter,
     DelegateImplementationTool,
     WorktreeImplementationRunner,
@@ -51,6 +52,7 @@ def verify_installed_package() -> None:
     assert PytestRunner.__name__ == "PytestRunner"
     assert RunTestsTool.__name__ == "RunTestsTool"
     assert CandidateSnapshotter.__name__ == "CandidateSnapshotter"
+    assert AdoptSubagentCandidateTool.__name__ == "AdoptSubagentCandidateTool"
     assert DelegateImplementationTool.__name__ == "DelegateImplementationTool"
     assert WorktreeImplementationRunner.__name__ == "WorktreeImplementationRunner"
     assert WorktreeManager.__name__ == "WorktreeManager"

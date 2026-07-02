@@ -71,6 +71,7 @@ class CandidateState(StrEnum):
     APPLYING = "applying"
     APPLIED = "applied"
     REJECTED = "rejected"
+    DISCARDING = "discarding"
     UNCERTAIN = "uncertain"
 
 
@@ -94,6 +95,19 @@ class SnapshotStatus(StrEnum):
 class CleanupStatus(StrEnum):
     REMOVED = "removed"
     CLEANUP_REQUIRED = "cleanup_required"
+
+
+class AdoptionStatus(StrEnum):
+    APPLIED = "applied"
+    CONFLICT = "conflict"
+    APPLY_FAILED_ROLLED_BACK = "apply_failed_rolled_back"
+    APPLY_UNCERTAIN = "apply_uncertain"
+    RECOVERED_READY = "recovered_ready"
+
+
+class DiscardStatus(StrEnum):
+    DISCARDED = "discarded"
+    CONFLICT = "conflict"
 
 
 class WorktreeLimits(BaseModel):
@@ -515,6 +529,24 @@ class CleanupResult(BaseModel):
 
     lease_id: str = Field(pattern=_IDENTIFIER)
     status: CleanupStatus
+
+
+class AdoptionResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_id: str = Field(pattern=_IDENTIFIER)
+    status: AdoptionStatus
+    changed_files: int = Field(ge=0, le=128)
+    manifest_sha256: Sha256
+
+
+class DiscardResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_id: str = Field(pattern=_IDENTIFIER)
+    status: DiscardStatus
+    changed_files: int = Field(ge=0, le=128)
+    manifest_sha256: Sha256
 
 
 class WorktreeFinalizationResult(BaseModel):

@@ -15,6 +15,7 @@ from mini_code_agent.worktrees.git import (
     WorktreeGitError,
     parse_batch_blobs,
     parse_index_pointers,
+    parse_status_paths,
     parse_worktree_paths,
 )
 from mini_code_agent.worktrees.models import WorktreeErrorCode
@@ -186,6 +187,28 @@ def test_worktree_list_parser_extracts_absolute_unique_paths(tmp_path: Path) -> 
         parse_worktree_paths(payload.rstrip(b"\0"))
     with pytest.raises(WorktreeGitError):
         parse_worktree_paths(f"worktree {first}\0worktree {first}\0".encode())
+
+
+def test_status_path_parser_accepts_modifications_and_additions() -> None:
+    payload = b" M src/app.py\0?? src/new.py\0"
+
+    assert parse_status_paths(
+        payload,
+        max_entries=32,
+        max_path_chars=1024,
+    ) == ("src/app.py", "src/new.py")
+    with pytest.raises(WorktreeGitError):
+        parse_status_paths(
+            payload.rstrip(b"\0"),
+            max_entries=32,
+            max_path_chars=1024,
+        )
+    with pytest.raises(WorktreeGitError):
+        parse_status_paths(
+            b"R  src/renamed.py\0src/original.py\0",
+            max_entries=32,
+            max_path_chars=1024,
+        )
 
 
 @pytest.mark.asyncio

@@ -311,6 +311,23 @@ class WorktreeGit:
             max_output_bytes=16 * 1024 * 1024,
         )
 
+    async def changed_paths(self) -> tuple[str, ...]:
+        output = await self._execute(
+            (
+                "status",
+                "--porcelain=v1",
+                "-z",
+                "--untracked-files=all",
+                "--ignore-submodules=none",
+            ),
+            max_output_bytes=16 * 1024 * 1024,
+        )
+        return parse_status_paths(
+            output,
+            max_entries=self._profile.limits.max_candidate_files,
+            max_path_chars=self._profile.limits.max_path_chars,
+        )
+
     async def index_pointers(self) -> tuple[GitIndexPointer, ...]:
         output = await self._execute(
             ("ls-files", "--stage", "--sparse", "-z"),
@@ -582,6 +599,40 @@ def parse_worktree_paths(output: bytes) -> tuple[Path, ...]:
         identities.add(identity)
         paths.append(path)
     return tuple(paths)
+
+
+def parse_status_paths(
+    output: bytes,
+    *,
+    max_entries: int,
+    max_path_chars: int,
+) -> tuple[str, ...]:
+    if output and not output.endswith(b"\0"):
+        raise _invalid_git_output()
+    paths: list[str] = []
+    identities: set[str] = set()
+    for record in output[:-1].split(b"\0") if output else ():
+        if (
+            len(record) < 4
+            or record[2:3] != b" "
+            or record[:1] in {b"R", b"C"}
+            or record[1:2] in {b"R", b"C"}
+        ):
+            raise _invalid_git_output()
+        try:
+            path = record[3:].decode("utf-8")
+        except UnicodeDecodeError:
+            raise _invalid_git_output() from None
+        if not path or "\0" in path or len(path) > max_path_chars:
+            raise _invalid_git_output()
+        identity = path.casefold()
+        if identity in identities:
+            raise _invalid_git_output()
+        identities.add(identity)
+        paths.append(path)
+        if len(paths) > max_entries:
+            raise _invalid_git_output()
+    return tuple(sorted(paths))
 
 
 def _decode_lines(output: bytes) -> list[str]:
