@@ -11,7 +11,7 @@ from mini_code_agent.agent.events import AgentEvent, EventSink
 from mini_code_agent.agent.models import AgentResult
 from mini_code_agent.policy.approval import ApprovalHandler
 from mini_code_agent.policy.models import ApprovalRequest
-from mini_code_agent.web.models import RunSnapshot, WebEvent, WebRunStatus
+from mini_code_agent.web.models import RunDetail, RunSnapshot, WebEvent, WebRunStatus
 
 type TaskRunner = Callable[
     [str, ApprovalHandler, EventSink],
@@ -30,7 +30,10 @@ class RunNotFoundError(KeyError):
 @dataclass
 class _RunState:
     run_id: str
+    prompt: str
     status: WebRunStatus = WebRunStatus.RUNNING
+    final_text: str | None = None
+    error: str | None = None
     events: deque[WebEvent] = field(default_factory=lambda: deque[WebEvent]())
     pending: dict[str, asyncio.Future[bool]] = field(
         default_factory=lambda: dict[str, asyncio.Future[bool]]()
@@ -66,13 +69,19 @@ class WebRunManager:
         runner: TaskRunner,
         *,
         max_retained_events: int = 512,
+        max_retained_runs: int = 20,
     ) -> None:
         if max_retained_events < 8:
             raise ValueError("max_retained_events must be at least 8")
+        if not 1 <= max_retained_runs <= 100:
+            raise ValueError("max_retained_runs must be between 1 and 100")
         self._runner = runner
         self._max_retained_events = max_retained_events
+        self._max_retained_runs = max_retained_runs
         self._runs: dict[str, _RunState] = {}
+        self._run_order: deque[str] = deque()
         self._active_run_id: str | None = None
+        self._latest_run_id: str | None = None
 
     async def start(self, prompt: str) -> RunSnapshot:
         if self._active_run_id is not None:
@@ -80,13 +89,20 @@ class WebRunManager:
             if active.status is WebRunStatus.RUNNING:
                 raise RunConflictError("A run is already active.")
 
+        while len(self._run_order) >= self._max_retained_runs:
+            expired_run_id = self._run_order.popleft()
+            self._runs.pop(expired_run_id, None)
+
         run_id = uuid4().hex
         state = _RunState(
             run_id=run_id,
+            prompt=prompt,
             events=deque(maxlen=self._max_retained_events),
         )
         self._runs[run_id] = state
+        self._run_order.append(run_id)
         self._active_run_id = run_id
+        self._latest_run_id = run_id
         self._publish(run_id, "web_run_started", {"status": "running"})
         state.task = asyncio.create_task(
             self._execute(run_id, prompt),
@@ -108,16 +124,19 @@ class WebRunManager:
                 self._publish(run_id, "web_run_cancelled", {"status": "cancelled"})
         except Exception:
             state.status = WebRunStatus.FAILED
+            state.error = "The Agent run failed. Check the local server logs."
             self._publish(
                 run_id,
                 "web_run_failed",
                 {
                     "status": "failed",
-                    "message": "The Agent run failed. Check the local server logs.",
+                    "message": state.error,
                 },
             )
         else:
             state.status = WebRunStatus.COMPLETED
+            state.final_text = result.final_text
+            state.error = result.error
             self._publish(
                 run_id,
                 "web_run_completed",
@@ -219,6 +238,25 @@ class WebRunManager:
         if self._active_run_id is None:
             return None
         return self.snapshot(self._active_run_id)
+
+    def latest_snapshot(self) -> RunSnapshot | None:
+        if self._latest_run_id is None:
+            return None
+        return self.snapshot(self._latest_run_id)
+
+    def detail(self, run_id: str) -> RunDetail:
+        state = self._state(run_id)
+        return RunDetail(
+            run_id=state.run_id,
+            status=state.status,
+            last_sequence=state.next_sequence - 1,
+            prompt=state.prompt,
+            final_text=state.final_text,
+            error=state.error,
+        )
+
+    def details(self) -> tuple[RunDetail, ...]:
+        return tuple(self.detail(run_id) for run_id in self._run_order)
 
     def events_after(
         self,

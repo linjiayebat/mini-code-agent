@@ -37,3 +37,9 @@ class RunSnapshot(WebModel):
     run_id: str = Field(pattern=_IDENTIFIER_PATTERN)
     status: WebRunStatus
     last_sequence: int = Field(default=0, ge=0)
+
+
+class RunDetail(RunSnapshot):
+    prompt: str = Field(min_length=1, max_length=20_000)
+    final_text: str | None = Field(default=None, max_length=2_000_000)
+    error: str | None = Field(default=None, max_length=500)

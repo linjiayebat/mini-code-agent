@@ -87,6 +87,53 @@ async def test_manager_allows_only_one_active_run() -> None:
 
 
 @pytest.mark.asyncio
+async def test_manager_retains_latest_run_detail_outside_event_payloads() -> None:
+    secret_prompt = "Explain the project without exposing this prompt in events."
+
+    async def runner(prompt: str, approval: object, events: object) -> AgentResult:
+        del approval, events
+        assert prompt == secret_prompt
+        return completed_result(final_text="Explanation")
+
+    manager = WebRunManager(runner)
+    started = await manager.start(secret_prompt)
+    await manager.wait(started.run_id)
+
+    latest = manager.latest_snapshot()
+    detail = manager.detail(started.run_id)
+    serialized_events = json.dumps(
+        [event.model_dump(mode="json") for event in manager.events_after(started.run_id)]
+    )
+
+    assert latest is not None
+    assert latest.run_id == started.run_id
+    assert detail.prompt == secret_prompt
+    assert detail.status is WebRunStatus.COMPLETED
+    assert detail.final_text == "Explanation"
+    assert secret_prompt not in serialized_events
+
+
+@pytest.mark.asyncio
+async def test_manager_retains_a_bounded_ordered_run_history() -> None:
+    async def runner(prompt: str, approval: object, events: object) -> AgentResult:
+        del approval, events
+        return completed_result(final_text=f"answer:{prompt}")
+
+    manager = WebRunManager(runner, max_retained_runs=2)
+    for prompt in ("first", "second", "third"):
+        started = await manager.start(prompt)
+        await manager.wait(started.run_id)
+
+    details = manager.details()
+
+    assert [detail.prompt for detail in details] == ["second", "third"]
+    assert [detail.final_text for detail in details] == [
+        "answer:second",
+        "answer:third",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_approval_is_bounded_single_use_and_can_be_approved() -> None:
     request = ApprovalRequest(
         preview=ActionPreview(

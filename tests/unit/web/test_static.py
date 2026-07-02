@@ -51,3 +51,27 @@ def test_styles_define_desktop_and_mobile_workbench_tracks() -> None:
     assert "--topbar-height" in css
     assert "grid-template-columns" in css
     assert "@media (max-width: 720px)" in css
+
+
+def test_conversation_column_cannot_grow_past_the_viewport() -> None:
+    css = static_text("styles.css")
+    conversation_block = css.split(".conversation {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+
+    assert "min-height: 0;" in conversation_block
+    assert "overflow: hidden;" in conversation_block
+
+
+def test_hidden_ui_states_never_participate_in_layout() -> None:
+    css = static_text("styles.css")
+
+    assert "[hidden]" in css
+    hidden_block = css.split("[hidden] {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    assert "display: none !important;" in hidden_block
+
+
+def test_frontend_restores_latest_run_and_reconnects_from_latest_sequence() -> None:
+    javascript = static_text("app.js")
+
+    assert "latest_run" in javascript
+    assert "restoreHistory" in javascript
+    assert "reconnectTimer" in javascript

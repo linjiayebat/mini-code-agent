@@ -199,3 +199,52 @@ async def test_approval_route_returns_not_found_for_stale_decision(
         )
 
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_completed_run_can_be_restored_after_browser_refresh(
+    tmp_path: Path,
+) -> None:
+    async def runner(prompt: str, approval: object, events: object) -> AgentResult:
+        del approval, events
+        assert prompt == "Remember this task"
+        return result()
+
+    manager = WebRunManager(runner)
+    app = create_web_app(
+        settings(tmp_path),
+        workspace=tmp_path,
+        manager=manager,
+        csrf_token="fixed-token",
+    )
+    headers = {"X-Mini-Code-Agent-Token": "fixed-token"}
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://127.0.0.1:8765",
+    ) as client:
+        started = await client.post(
+            "/api/runs",
+            json={"prompt": "Remember this task"},
+            headers=headers,
+        )
+        run_id = started.json()["run_id"]
+        await manager.wait(run_id)
+
+        bootstrap = await client.get("/api/bootstrap")
+        unauthenticated = await client.get(f"/api/runs/{run_id}")
+        restored = await client.get(f"/api/runs/{run_id}", headers=headers)
+        history = await client.get("/api/runs", headers=headers)
+
+    assert bootstrap.json()["active_run"] is None
+    assert bootstrap.json()["latest_run"]["run_id"] == run_id
+    assert unauthenticated.status_code == 403
+    assert restored.status_code == 200
+    assert restored.json() == {
+        "run_id": run_id,
+        "status": "completed",
+        "last_sequence": 2,
+        "prompt": "Remember this task",
+        "final_text": "Finished.",
+        "error": None,
+    }
+    assert history.json() == [restored.json()]
