@@ -27,6 +27,7 @@ _WINDOWS_KEYS = (
     "LOCALAPPDATA",
     "PATH",
     "PATHEXT",
+    "SYSTEMDRIVE",
     "SYSTEMROOT",
     "TEMP",
     "TMP",

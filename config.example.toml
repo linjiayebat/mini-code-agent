@@ -8,3 +8,6 @@ base_url = "https://api.siliconflow.cn/v1"
 
 # Keep API keys out of this file. For SiliconFlow, set:
 # MINI_CODE_AGENT_OPENAI_API_KEY
+#
+# Then start the local UI with:
+# mini-code-agent web --config .\config.example.toml --workspace .

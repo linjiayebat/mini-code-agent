@@ -2,7 +2,7 @@
 
 A framework-light, provider-neutral coding agent built from first principles.
 
-> Status: pre-alpha. M7 provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
+> Status: pre-alpha. M8 provides a provider-neutral Agent Core, Anthropic/OpenAI-compatible
 > adapters, a schema-validating Tool Registry, a cross-platform Workspace boundary, bounded
 > Read/Search, conflict-aware Write/Edit, policy-governed argv command execution, and deterministic
 > context admission, hardened read-only Git evidence, governed Pytest diagnostics, versioned SQLite
@@ -10,7 +10,8 @@ A framework-light, provider-neutral coding agent built from first principles.
 > loop, provenance-aware lazy Skills, deterministic host-registered Tool Hooks, and host-pinned
 > local MCP stdio Tools, bounded host-profiled read-only analysis Subagents, and host-managed
 > Worktree implementation candidates with separately approved adoption, plus provider-backed
-> `run` and `chat` terminal commands with governed action previews. OS sandboxing,
+> `run` and `chat` terminal commands plus a loopback-only Web console with live activity,
+> governed action previews, approval, and cancellation. OS sandboxing,
 > shell-string execution, project-provided executable Hooks, automatic Repair resume, remote
 > HTTP/OAuth MCP, automatic commit/merge/push, and live-provider CI are not implemented.
 
@@ -73,6 +74,21 @@ Start an interactive task loop:
 ```powershell
 mini-code-agent chat --config .\config.toml --workspace .
 ```
+
+Start the local Web console:
+
+```powershell
+mini-code-agent web --config .\config.toml --workspace .
+```
+
+The browser opens `http://127.0.0.1:8765` by default. Use `--no-open` to start only the server or
+`--port` to choose another local port. The command rejects non-loopback hosts. The Workspace is
+fixed when the process starts; it cannot be changed from the browser.
+
+The Web console shows Agent lifecycle events, Tool activity, token usage, bounded action previews,
+and file diffs. Write and command actions pause until they are approved or rejected in the
+inspector. API keys stay in server-side settings; the browser receives only a configured/not
+configured flag and a process-random request token.
 
 Each `chat` prompt starts an independent bounded Agent run against the same workspace; durable
 conversation memory is not implied. Read-only tools run automatically. File writes and local argv
