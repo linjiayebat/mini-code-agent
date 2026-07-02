@@ -15,6 +15,7 @@
 | L10 MCP | Complete and released | Governed stdio, exact grants, real SDK integration; v0.14 evidence |
 | L11 Subagent and Worktree | Complete and released | Host-profiled analysis plus governed Worktree candidates/adoption; v0.16 evidence |
 | L12 CI, benchmark and release | In progress | v0.16 prerelease and cross-platform evidence complete; benchmark remains separate |
+| L13 Local Web console | Complete locally | FastAPI adapter, SSE event replay, Future approval, responsive browser workbench |
 
 ## L0 Notes
 

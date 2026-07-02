@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
+import webbrowser
 from pathlib import Path
 from typing import Annotated
 
 import typer
+import uvicorn
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -27,6 +30,7 @@ from mini_code_agent.diagnostics import DiagnosticReport, build_diagnostic_repor
 from mini_code_agent.logging import configure_logging
 from mini_code_agent.policy.models import SessionMode
 from mini_code_agent.terminal import TerminalApprovalHandler, TerminalEventSink
+from mini_code_agent.web.app import create_web_app
 
 app = typer.Typer(
     name="mini-code-agent",
@@ -36,6 +40,7 @@ app = typer.Typer(
 )
 console = Console()
 error_console = Console(stderr=True)
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def _version_callback(value: bool) -> None:
@@ -102,6 +107,12 @@ def _render_agent_result(result: AgentResult) -> None:
     )
     if result.error:
         error_console.print(f"[red]Agent stopped:[/red] {result.error}")
+
+
+def _schedule_browser_open(url: str) -> None:
+    timer = threading.Timer(0.8, webbrowser.open, args=(url,))
+    timer.daemon = True
+    timer.start()
 
 
 def _execute_task(
@@ -249,3 +260,53 @@ def chat(
         failed = failed or not result.succeeded
     if failed:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def web(
+    workspace: Annotated[
+        Path | None,
+        typer.Option("--workspace", "-w", help="Workspace directory. Defaults to the current one."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a TOML configuration file."),
+    ] = None,
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Loopback host for the local Web console."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", min=1, max=65535, help="Local Web console port."),
+    ] = 8765,
+    no_open: Annotated[
+        bool,
+        typer.Option("--no-open", help="Do not open the system browser automatically."),
+    ] = False,
+) -> None:
+    if host not in _LOOPBACK_HOSTS:
+        error_console.print(
+            "[red]Configuration error:[/red] Web console host must be a loopback address."
+        )
+        raise typer.Exit(code=2)
+
+    settings = _load_command_settings(config)
+    active_workspace = workspace or Path.cwd()
+    try:
+        web_app = create_web_app(settings, workspace=active_workspace)
+    except ValueError as exc:
+        error_console.print(f"[red]Configuration error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    display_host = f"[{host}]" if host == "::1" else host
+    url = f"http://{display_host}:{port}"
+    console.print(f"[dim]Mini CodeAgent Web console: {url}[/dim]")
+    if not no_open:
+        _schedule_browser_open(url)
+    uvicorn.run(
+        web_app,
+        host=host,
+        port=port,
+        log_level=settings.log_level.value,
+    )

@@ -6,6 +6,12 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ### Added
 
+- Loopback-only `mini-code-agent web` command with a responsive three-pane local workbench,
+  real-time SSE lifecycle activity, task cancellation, and browser approval for governed actions.
+- Bounded in-memory Web run manager with one active run, monotonic replayable events,
+  Future-based single-use approvals, and deterministic cancellation cleanup.
+- Learning and resume documentation for the Web adapter, asyncio/SSE flow, browser trust boundary,
+  and Java backend concept mapping.
 - Provider-backed `run` and `chat` CLI commands that compose the existing Agent runtime,
   OpenAI-compatible or Anthropic adapters, bounded Workspace, and governed built-in tools.
 - SiliconFlow configuration through `provider`, `model`, `base_url`, and the existing
@@ -15,6 +21,10 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ### Security
 
+- Web requests that mutate state require a process-random token; browser Origins must be
+  loopback, CORS is not enabled, and the CLI rejects remote binding.
+- Workspace selection and Provider credentials stay server-side. Browser-rendered model text,
+  paths, commands, and diffs use text nodes rather than dynamic HTML.
 - Read-only tools remain allowed by default. Writes and CLI-enabled command execution require an
   interactive approval; non-interactive mode denies both without prompting.
 - CLI output uses normalized public errors and never renders API key values. Live provider calls
@@ -24,6 +34,9 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 
 ### Verification
 
+- M8 local Windows verification passed 1218 tests with 13 privilege/platform skips and 88.52%
+  branch-aware package coverage. Ruff format/check, strict Pyright, and browser layout checks at
+  1440x1024, 1024x768, and 390x844 passed.
 - Local uv-managed Python 3.13.14 passed 1201 tests with 13 Windows privilege/platform skips and
   88.56% branch-aware package coverage. Ruff format/check and strict Pyright passed.
 - MockTransport verified the SiliconFlow-compatible

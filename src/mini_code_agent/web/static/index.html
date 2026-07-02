@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Mini CodeAgent</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span>Mini CodeAgent</span>
+        <span id="version-label" class="version">local</span>
+      </div>
+      <div class="runtime-status" aria-label="运行配置">
+        <span id="provider-status" class="status-chip">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="provider-label">正在读取配置</span>
+        </span>
+        <span id="model-label" class="model-label">未配置模型</span>
+      </div>
+      <button
+        id="inspector-toggle"
+        class="icon-button inspector-toggle"
+        type="button"
+        title="打开活动面板"
+        aria-label="打开活动面板"
+        aria-expanded="false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 19V9M10 19V5M16 19v-7M22 19V3"></path>
+        </svg>
+      </button>
+    </header>
+
+    <div class="workbench">
+      <aside id="session-rail" class="session-rail" aria-label="会话与工作区">
+        <div class="rail-heading">
+          <span>会话</span>
+          <button class="icon-button" type="button" title="当前仅支持单会话" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"></path>
+            </svg>
+          </button>
+        </div>
+        <button class="session-item active" type="button">
+          <span class="session-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M8 9h8M8 13h5M5 20l2.2-3H18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h1.2"></path>
+            </svg>
+          </span>
+          <span class="session-copy">
+            <strong>当前会话</strong>
+            <small id="session-state">等待任务</small>
+          </span>
+        </button>
+        <div class="workspace-block">
+          <span class="section-label">工作区</span>
+          <div class="workspace-path">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 7h6l2 2h10v10H3zM3 7V5h7l2 2"></path>
+            </svg>
+            <span id="workspace-label">正在加载</span>
+          </div>
+        </div>
+        <div class="rail-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7zM9 12l2 2 4-4"></path>
+          </svg>
+          <span>写入和命令执行受策略审批保护</span>
+        </div>
+      </aside>
+
+      <main class="conversation">
+        <div class="conversation-heading">
+          <div>
+            <span class="eyebrow">本地 Agent 工作台</span>
+            <h1>项目任务</h1>
+          </div>
+          <div id="run-state" class="run-state" data-state="idle">空闲</div>
+        </div>
+
+        <section id="transcript" class="transcript" aria-live="polite">
+          <div id="empty-state" class="empty-state">
+            <span class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M8 9h8M8 13h5M5 20l2.2-3H18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h1.2"></path>
+              </svg>
+            </span>
+            <h2>从一个具体任务开始</h2>
+            <p>例如：分析项目结构并说明核心调用链。</p>
+          </div>
+        </section>
+
+        <form id="composer" class="composer">
+          <label class="sr-only" for="prompt-input">输入任务</label>
+          <textarea
+            id="prompt-input"
+            rows="3"
+            maxlength="20000"
+            placeholder="描述要在当前工作区完成的任务..."
+            required
+          ></textarea>
+          <div class="composer-footer">
+            <span id="composer-hint" class="composer-hint">Ctrl + Enter 运行</span>
+            <div class="composer-actions">
+              <button id="cancel-button" class="button secondary" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10"></rect>
+                </svg>
+                停止
+              </button>
+              <button id="run-button" class="button primary" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 5l11 7-11 7z"></path>
+                </svg>
+                运行
+              </button>
+            </div>
+          </div>
+        </form>
+      </main>
+
+      <aside id="inspector" class="inspector" aria-label="运行检查器">
+        <div class="inspector-tabs" role="tablist">
+          <button
+            id="activity-tab"
+            class="tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="activity-panel"
+          >
+            活动
+            <span id="activity-count" class="count">0</span>
+          </button>
+          <button
+            id="changes-tab"
+            class="tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="changes-panel"
+          >
+            变更
+          </button>
+          <button
+            id="inspector-close"
+            class="icon-button inspector-close"
+            type="button"
+            title="关闭活动面板"
+            aria-label="关闭活动面板"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18"></path>
+            </svg>
+          </button>
+        </div>
+
+        <section id="activity-panel" class="inspector-panel" role="tabpanel">
+          <div id="activity-empty" class="panel-empty">
+            运行任务后，这里会显示模型调用、工具执行和审批。
+          </div>
+          <ol id="activity-list" class="activity-list"></ol>
+          <section id="approval-panel" class="approval-panel" hidden>
+            <div class="approval-heading">
+              <span class="risk-badge" id="approval-risk">待确认</span>
+              <strong id="approval-title">工具操作</strong>
+            </div>
+            <p id="approval-summary"></p>
+            <dl class="approval-details">
+              <div>
+                <dt>原因</dt>
+                <dd id="approval-reason"></dd>
+              </div>
+              <div>
+                <dt>资源</dt>
+                <dd id="approval-resources"></dd>
+              </div>
+              <div id="approval-command-row">
+                <dt>命令</dt>
+                <dd><code id="approval-command"></code></dd>
+              </div>
+            </dl>
+            <div class="approval-actions">
+              <button id="reject-button" class="button danger" type="button">拒绝</button>
+              <button id="approve-button" class="button primary" type="button">允许一次</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="changes-panel" class="inspector-panel" role="tabpanel" hidden>
+          <div id="changes-empty" class="panel-empty">
+            待审批的文件变更会显示在这里。
+          </div>
+          <pre id="diff-viewer" class="diff-viewer" hidden></pre>
+        </section>
+      </aside>
+    </div>
+
+    <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

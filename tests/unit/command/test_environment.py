@@ -27,6 +27,7 @@ def test_windows_environment_lookup_is_case_insensitive_and_canonical() -> None:
     source = {
         "Path": r"C:\Windows\System32",
         "pathext": ".EXE;.CMD",
+        "systemdrive": "C:",
         "systemroot": r"C:\Windows",
         "TEMP": r"C:\Temp",
         "OPENAI_API_KEY": "secret",
@@ -38,6 +39,7 @@ def test_windows_environment_lookup_is_case_insensitive_and_canonical() -> None:
     assert result == {
         "PATH": r"C:\Windows\System32",
         "PATHEXT": ".EXE;.CMD",
+        "SYSTEMDRIVE": "C:",
         "SYSTEMROOT": r"C:\Windows",
         "TEMP": r"C:\Temp",
     }

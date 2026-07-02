@@ -52,7 +52,7 @@ def test_version_option_prints_package_version() -> None:
     result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == "0.17.0a0"
+    assert result.stdout.strip() == "0.18.0a0"
 
 
 def test_module_entrypoint_prints_package_version() -> None:
@@ -64,7 +64,7 @@ def test_module_entrypoint_prints_package_version() -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "0.17.0a0"
+    assert result.stdout.strip() == "0.18.0a0"
 
 
 def test_doctor_json_never_prints_secrets(
@@ -260,3 +260,98 @@ def test_chat_runs_each_prompt_until_exit(
     assert "Completed: Inspect files." in result.stdout
     assert "Completed: Summarize changes." in result.stdout
     assert "independent bounded run" in result.stdout
+
+
+def test_web_starts_loopback_server_and_opens_browser(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_app = object()
+    created: list[dict[str, object]] = []
+    served: list[dict[str, object]] = []
+    opened: list[str] = []
+
+    def fake_create_web_app(*args: object, **kwargs: object) -> object:
+        created.append(dict(kwargs))
+        return fake_app
+
+    def fake_uvicorn_run(app_object: object, **kwargs: object) -> None:
+        assert app_object is fake_app
+        served.append(dict(kwargs))
+
+    monkeypatch.setattr("mini_code_agent.cli.create_web_app", fake_create_web_app)
+    monkeypatch.setattr("mini_code_agent.cli.uvicorn.run", fake_uvicorn_run)
+
+    def fake_open(url: str) -> None:
+        opened.append(url)
+
+    monkeypatch.setattr("mini_code_agent.cli._schedule_browser_open", fake_open)
+    monkeypatch.setenv("MINI_CODE_AGENT_MODEL", "Pro/zai-org/GLM-4.7")
+    monkeypatch.setenv("MINI_CODE_AGENT_OPENAI_API_KEY", "test-key")
+
+    result = runner.invoke(
+        app,
+        [
+            "web",
+            "--workspace",
+            str(tmp_path),
+            "--port",
+            "9876",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert created[0]["workspace"] == tmp_path
+    assert served == [
+        {
+            "host": "127.0.0.1",
+            "port": 9876,
+            "log_level": "info",
+        }
+    ]
+    assert opened == ["http://127.0.0.1:9876"]
+
+
+def test_web_no_open_skips_browser(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_create_web_app(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        return object()
+
+    def fake_uvicorn_run(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+
+    def fail_open(url: str) -> None:
+        pytest.fail(f"unexpected browser open: {url}")
+
+    monkeypatch.setattr("mini_code_agent.cli.create_web_app", fake_create_web_app)
+    monkeypatch.setattr("mini_code_agent.cli.uvicorn.run", fake_uvicorn_run)
+    monkeypatch.setattr("mini_code_agent.cli._schedule_browser_open", fail_open)
+
+    result = runner.invoke(
+        app,
+        ["web", "--workspace", str(tmp_path), "--no-open"],
+    )
+
+    assert result.exit_code == 0
+
+
+def test_web_rejects_non_loopback_host(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_uvicorn(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("server must not start")
+
+    monkeypatch.setattr("mini_code_agent.cli.uvicorn.run", fail_uvicorn)
+
+    result = runner.invoke(
+        app,
+        ["web", "--workspace", str(tmp_path), "--host", "0.0.0.0"],
+    )
+
+    assert result.exit_code == 2
+    assert "loopback" in result.stderr.lower()
