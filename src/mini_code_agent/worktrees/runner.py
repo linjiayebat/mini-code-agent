@@ -6,6 +6,7 @@ import json
 import re
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Protocol, cast
 from uuid import uuid4
 
@@ -210,17 +211,16 @@ class WorktreeImplementationRunner:
         try:
             return await asyncio.shield(task)
         except asyncio.CancelledError:
-            try:
-                await asyncio.wait_for(
-                    asyncio.shield(task),
-                    timeout=self._profile.limits.cleanup_timeout_seconds,
-                )
-            except TimeoutError:
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
-                self._manager.record_cancellation_timeout(lease)
-            except Exception:
-                pass
+            with suppress(Exception):
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(task),
+                        timeout=self._profile.limits.cleanup_timeout_seconds,
+                    )
+                except TimeoutError:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+                    self._manager.record_cancellation_timeout(lease)
             raise
 
     def _allocate_ids(self) -> tuple[str, str]:

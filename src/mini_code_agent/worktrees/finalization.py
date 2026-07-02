@@ -107,20 +107,19 @@ async def run_cancellation_finalization(
     if not 0 < timeout_seconds <= 300:
         raise ValueError("Cancellation finalization timeout is invalid.")
     task = asyncio.create_task(finalize())
-    try:
-        await asyncio.wait_for(
-            asyncio.shield(task),
-            timeout=timeout_seconds,
-        )
-    except TimeoutError:
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
-        if on_timeout is not None:
-            with suppress(Exception):
-                on_timeout()
-    except asyncio.CancelledError:
-        if not task.done():
+    with suppress(Exception):
+        try:
+            await asyncio.wait_for(
+                asyncio.shield(task),
+                timeout=timeout_seconds,
+            )
+        except TimeoutError:
             task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
-    except Exception:
-        pass
+            await asyncio.gather(task, return_exceptions=True)
+            if on_timeout is not None:
+                with suppress(Exception):
+                    on_timeout()
+        except asyncio.CancelledError:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)

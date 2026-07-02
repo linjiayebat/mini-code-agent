@@ -182,7 +182,7 @@ class CandidateAdoptionService:
             except WorktreeStateError:
                 raise CandidateAdoptionError("Applying candidate is unavailable.") from None
             manifest = payload.manifest
-            try:
+            with suppress(Exception):
                 top_level, bare = await self._git.repository_info()
                 head = await self._git.head_sha()
                 states = await asyncio.to_thread(
@@ -217,8 +217,6 @@ class CandidateAdoptionService:
                         CandidateState.APPLIED,
                     )
                     return _adoption_result(manifest, AdoptionStatus.APPLIED)
-            except Exception:
-                pass
             await self._mark_uncertain(candidate_id)
             return _adoption_result(manifest, AdoptionStatus.APPLY_UNCERTAIN)
 

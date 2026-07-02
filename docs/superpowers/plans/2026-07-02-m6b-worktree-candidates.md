@@ -191,18 +191,24 @@ hooks-empty/
 ## Task 10: Document, Package, Publish, and Record Evidence
 
 **Files:**
+- Modify: `.github/workflows/ci.yml`
+- Modify: `CHANGELOG.md`
 - Modify: `README.md`
-- Modify: `docs/learning/prerequisites-and-knowledge-map.md`
-- Modify: `docs/resume/project-description.md`
-- Modify: `docs/resume/technical-highlights.md`
-- Modify: `docs/operations/release-process.md`
-- Modify: `docs/operations/release-evidence.md`
+- Modify: `SECURITY.md`
+- Create: `docs/architecture/governed-worktree-candidates.md`
+- Create: `docs/adr/0015-governed-worktree-candidates.md`
+- Modify: `docs/architecture/threat-model.md`
+- Modify: `docs/learning/knowledge-map.md`
+- Modify: `docs/learning/progress.md`
+- Modify: `docs/resume/project-profile.md`
 - Modify: `pyproject.toml`
+- Create: `tests/worktree_artifact_test.py`
+- Modify: release-version tests and `tests/smoke_test.py`
 - Modify: `uv.lock`
 
-- [ ] Explain the trust boundaries, state machine, limits, failure modes, operator recovery, and why child completion is separated from parent adoption.
-- [ ] Add prerequisite knowledge and implementation notes for Git index/object storage, worktrees, CAS writes, manifests, rollback, TOCTOU defenses, cancellation shielding, and fail-closed cleanup.
-- [ ] Add resume-ready project description, stack, measurable highlights, and for each highlight: why it exists, the technical mechanism, the delivered function, the optimization, and the problem solved.
+- [x] Explain the trust boundaries, state machine, limits, failure modes, operator recovery, and why child completion is separated from parent adoption.
+- [x] Add prerequisite knowledge and implementation notes for Git index/object storage, worktrees, CAS writes, manifests, rollback, TOCTOU defenses, cancellation shielding, and fail-closed cleanup.
+- [x] Add resume-ready project description, stack, measurable highlights, and for each highlight: why it exists, the technical mechanism, the delivered function, the optimization, and the problem solved.
 - [ ] Bump to `0.16.0a0`, build twice with a fixed epoch, compare artifacts byte-for-byte, and inspect members.
 - [ ] Smoke-test wheel and sdist in isolated Python 3.12/3.13 environments, including real delegation and adoption flows.
 - [ ] Push `codex/m6b-worktree-candidates`, open a PR, wait for all CI jobs, merge, verify merged-main CI, create annotated `v0.16.0-alpha.0`, publish a non-draft prerelease with verified artifacts, and update release evidence.
