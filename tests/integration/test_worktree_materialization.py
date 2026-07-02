@@ -42,6 +42,7 @@ async def test_real_no_checkout_lease_materializes_only_tracked_index(
     _git(repository, "init")
     _git(repository, "config", "user.email", "agent@example.invalid")
     _git(repository, "config", "user.name", "Agent Test")
+    _git(repository, "config", "core.autocrlf", "true")
     (repository / ".gitignore").write_text(".env\n.venv/\ncache/\n", encoding="utf-8")
     (repository / "src").mkdir()
     (repository / "src" / "app.py").write_bytes(b"print('tracked')\r\n")
