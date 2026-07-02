@@ -13,8 +13,8 @@
 | L8 Git/test/repair | Complete and released | M4a Git + M4b Pytest + M4c bounded Repair |
 | L9 Skills and Hooks | Complete and released | Inert Skills + monotonic Tool Hooks; v0.13 evidence |
 | L10 MCP | Complete and released | Governed stdio, exact grants, real SDK integration; v0.14 evidence |
-| L11 Subagent and Worktree | M6a released; M6b implementation complete, release gate in progress | Host-profiled analysis plus governed Worktree candidates/adoption |
-| L12 CI, benchmark and release | In progress | v0.15 released; v0.16 local/cross-version gates in progress |
+| L11 Subagent and Worktree | Complete and released | Host-profiled analysis plus governed Worktree candidates/adoption; v0.16 evidence |
+| L12 CI, benchmark and release | In progress | v0.16 prerelease and cross-platform evidence complete; benchmark remains separate |
 
 ## L0 Notes
 
@@ -866,5 +866,20 @@
 - 独立 Python 3.12.13 环境同样为 1184 passed、13 skipped。13 个 Windows skip 包括既有
   symlink privilege 条件与仅在 POSIX 验证 mode/case/FIFO 的场景；Ubuntu CI 将执行对应
   POSIX 路径。
-- 最终源码冻结后的 reproducible build、四组 artifact smoke、PR/main CI、tag、Release 与
-  远端 digest 仍需完成后再记录，不能把中间构建写成发布成果。
+- PR #6 <https://github.com/linjiayebat/mini-code-agent/pull/6> 的最终 CI run
+  `28562542815` 与 merged-main run `28562637848` 均通过 quality、Ubuntu/Windows x Python
+  3.12/3.13 五个 job。merged main 的 Ubuntu 两组各 1196 passed/1 skipped，Windows 两组
+  各 1194 passed/3 skipped，coverage 为 88.59%-88.63%。
+- 在 merge commit `af50c54e4d59cd9c00b2a83cb12270e9b1f04b9d` 上固定
+  `SOURCE_DATE_EPOCH=1580601600` 的两次构建逐字节一致。wheel
+  `mini_code_agent-0.16.0a0-py3-none-any.whl` 为 211296 bytes，SHA-256
+  `925422fde94abf1aa70b43333b827cd439b6c05f5ff659264ef9c64635dbabc7`；sdist
+  `mini_code_agent-0.16.0a0.tar.gz` 为 598089 bytes，SHA-256
+  `4f0f7d73b54f87873ff11ddba04794cc9acc3133aaa34146fb704c8038350ed5`。
+- wheel/sdist 在 Python 3.12/3.13 四组 isolated environment 中均通过 stable API/CLI，
+  以及真实 implementation delegation、parent unchanged、candidate persistence 和 adoption
+  smoke。
+- Annotated tag `v0.16.0-alpha.0` 解引用到 merge commit `af50c54`。非 draft GitHub
+  prerelease
+  <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.16.0-alpha.0> 已发布，
+  远端 asset name、size 与 GitHub SHA-256 digest 均与上述本地制品一致。

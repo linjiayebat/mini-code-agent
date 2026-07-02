@@ -55,9 +55,21 @@ All notable changes follow Keep a Changelog. Versions follow Semantic Versioning
 - Local Python 3.12.13 and 3.13.14 each passed 1184 tests with 13 platform/privilege skips.
   Python 3.13 package branch coverage was 88.49%, above the 85% gate. Ruff format/check, strict
   Pyright, Bandit, and locked runtime dependency audit passed.
-- Final reproducible artifact hashes, isolated smoke evidence, PR/main CI run IDs, tag commit,
-  release URL, and remote asset digests will be recorded after the remaining release gates
-  complete.
+- PR CI run `28562542815` and merged-main run `28562637848` passed quality plus Ubuntu/Windows on
+  Python 3.12/3.13. Merged main passed 1196 tests with one intentional platform skip on each
+  Ubuntu job and 1194 tests with three platform/privilege skips on each Windows job; coverage was
+  88.59%-88.63%.
+- Repeated fixed-epoch builds from merge commit `af50c54e4d59cd9c00b2a83cb12270e9b1f04b9d`
+  produced byte-identical artifacts. The wheel is 211296 bytes with SHA-256
+  `925422fde94abf1aa70b43333b827cd439b6c05f5ff659264ef9c64635dbabc7`; the sdist is
+  598089 bytes with SHA-256
+  `4f0f7d73b54f87873ff11ddba04794cc9acc3133aaa34146fb704c8038350ed5`.
+- Both artifacts passed isolated API/CLI plus real implementation delegation, unchanged-parent,
+  candidate persistence, and adoption smoke on Python 3.12/3.13.
+- Annotated tag `v0.16.0-alpha.0` dereferences to merge commit `af50c54`. The non-draft GitHub
+  prerelease at
+  <https://github.com/linjiayebat/mini-code-agent/releases/tag/v0.16.0-alpha.0> reports asset
+  names, sizes, and SHA-256 digests identical to the locally verified artifacts.
 
 ## [0.15.0-alpha.0] - 2026-07-02
 

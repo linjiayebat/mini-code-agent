@@ -209,10 +209,10 @@ hooks-empty/
 - [x] Explain the trust boundaries, state machine, limits, failure modes, operator recovery, and why child completion is separated from parent adoption.
 - [x] Add prerequisite knowledge and implementation notes for Git index/object storage, worktrees, CAS writes, manifests, rollback, TOCTOU defenses, cancellation shielding, and fail-closed cleanup.
 - [x] Add resume-ready project description, stack, measurable highlights, and for each highlight: why it exists, the technical mechanism, the delivered function, the optimization, and the problem solved.
-- [ ] Bump to `0.16.0a0`, build twice with a fixed epoch, compare artifacts byte-for-byte, and inspect members.
-- [ ] Smoke-test wheel and sdist in isolated Python 3.12/3.13 environments, including real delegation and adoption flows.
-- [ ] Push `codex/m6b-worktree-candidates`, open a PR, wait for all CI jobs, merge, verify merged-main CI, create annotated `v0.16.0-alpha.0`, publish a non-draft prerelease with verified artifacts, and update release evidence.
-- [ ] Commit: `docs: prepare 0.16 worktree candidate alpha`
+- [x] Bump to `0.16.0a0`, build twice with a fixed epoch, compare artifacts byte-for-byte, and inspect members.
+- [x] Smoke-test wheel and sdist in isolated Python 3.12/3.13 environments, including real delegation and adoption flows.
+- [x] Push `codex/m6b-worktree-candidates`, open a PR, wait for all CI jobs, merge, verify merged-main CI, create annotated `v0.16.0-alpha.0`, publish a non-draft prerelease with verified artifacts, and update release evidence.
+- [x] Commit: `docs: prepare 0.16 worktree candidate alpha`
 
 ## Final Verification Commands
 
